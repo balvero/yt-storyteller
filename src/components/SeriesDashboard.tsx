@@ -377,31 +377,49 @@ export const SeriesDashboard: React.FC = () => {
                   </div>
 
                   <div className="pt-4 border-t border-slate-800/80 flex items-center justify-between gap-2">
-                    <button
-                      onClick={() => handleRegenerateConcept(ep.id)}
-                      disabled={isRegeneratingThis}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-colors disabled:opacity-50"
-                      title="Regenerate this episode concept with AI"
-                    >
-                      {isRegeneratingThis ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 text-amber-500" />}
-                      Regenerate Concept
-                    </button>
+                    {/* Regenerate Concept Icon Button */}
+                    <div className="relative group">
+                      <button
+                        onClick={() => handleRegenerateConcept(ep.id)}
+                        disabled={isRegeneratingThis}
+                        className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors disabled:opacity-50 flex items-center justify-center"
+                        aria-label="Regenerate Concept with AI"
+                      >
+                        {isRegeneratingThis ? <Loader2 className="w-4 h-4 animate-spin text-amber-500" /> : <RefreshCw className="w-4 h-4 text-amber-500" />}
+                      </button>
+                      <div className="absolute bottom-full mb-2 left-0 hidden group-hover:block bg-slate-950 text-slate-200 text-[10px] font-bold py-1 px-2.5 rounded-md whitespace-nowrap shadow-xl border border-slate-700 z-20 pointer-events-none">
+                        Regenerate Concept with AI
+                      </div>
+                    </div>
 
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => deleteEpisode(ep.id)}
-                        className="p-2 rounded-lg hover:bg-red-500/20 text-slate-500 hover:text-red-400 transition-colors"
-                        title="Delete Episode"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {/* Delete Episode Icon Button */}
+                      <div className="relative group">
+                        <button
+                          onClick={() => deleteEpisode(ep.id)}
+                          className="p-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors flex items-center justify-center"
+                          aria-label="Delete Episode"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 hidden group-hover:block bg-slate-950 text-red-400 text-[10px] font-bold py-1 px-2.5 rounded-md whitespace-nowrap shadow-xl border border-slate-700 z-20 pointer-events-none">
+                          Delete Episode
+                        </div>
+                      </div>
                       
-                      <button
-                        onClick={() => setActiveEpisodeId(ep.id)}
-                        className="flex items-center gap-1 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-900 font-black text-xs transition-all"
-                      >
-                        Open Storyboard <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
+                      {/* Open Storyboard Icon Button */}
+                      <div className="relative group">
+                        <button
+                          onClick={() => setActiveEpisodeId(ep.id)}
+                          className="p-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900 font-black transition-all flex items-center justify-center shadow-lg shadow-amber-500/10"
+                          aria-label="Open Storyboard Canvas"
+                        >
+                          <ChevronRight className="w-4 h-4 stroke-[3]" />
+                        </button>
+                        <div className="absolute bottom-full mb-2 right-0 hidden group-hover:block bg-slate-950 text-amber-400 text-[10px] font-bold py-1 px-2.5 rounded-md whitespace-nowrap shadow-xl border border-slate-700 z-20 pointer-events-none">
+                          Open Storyboard Canvas
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
