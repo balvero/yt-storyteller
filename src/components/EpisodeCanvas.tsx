@@ -188,13 +188,14 @@ VIDEO PROMPT: ${s.aiPrompts.videoPrompt}
         <ChevronLeft className="w-4 h-4" /> Back to Series Dashboard
       </button>
 
-      <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl mb-8 flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
+      <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl mb-8 flex flex-col gap-6">
         <div>
           <span className="text-amber-500 font-bold text-xs uppercase tracking-widest">{activeSeries.title}</span>
           <h2 className="text-2xl font-black text-slate-100 mt-1">{activeEpisode.title}</h2>
-          <p className="text-slate-400 text-sm mt-2 max-w-2xl">{activeEpisode.conceptOverview}</p>
+          <p className="text-slate-400 text-sm mt-2 leading-relaxed">{activeEpisode.conceptOverview}</p>
         </div>
-        <div className="flex flex-wrap gap-3 shrink-0">
+        
+        <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-slate-800/80">
           <button
             onClick={handleCopyVoiceovers}
             disabled={activeEpisode.scenes.length === 0}
@@ -231,7 +232,7 @@ VIDEO PROMPT: ${s.aiPrompts.videoPrompt}
           <button
             onClick={handleGenerate}
             disabled={isGenerating}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900 font-extrabold text-sm transition-all disabled:opacity-60"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900 font-extrabold text-sm transition-all disabled:opacity-60 shadow-lg shadow-amber-500/10"
           >
             {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
             {activeEpisode.scenes.length > 0 ? 'Regenerate Storyboard' : 'Generate Storyboard'}
