@@ -31,7 +31,7 @@ export const SeriesDashboard: React.FC = () => {
   const [regeneratingEpId, setRegeneratingEpId] = useState<string | null>(null);
 
   const episodes = useLiveQuery(
-    () => activeSeries ? db.episodes.where({ seriesId: activeSeries.id }).reverse().toArray() : [],
+    () => activeSeries ? db.episodes.where({ seriesId: activeSeries.id }).sortBy('createdAt') : [],
     [activeSeries?.id]
   ) || [];
 
@@ -62,13 +62,18 @@ export const SeriesDashboard: React.FC = () => {
     }
 
     setIsBrainstorming(true);
+    const startEpNumber = episodes.length + 1;
+    const existingTitles = episodes.map(e => e.title);
+
     try {
       const results = await brainstormEpisodes(
         activeSeries.title,
         activeSeries.topicDescription,
         settings.geminiApiKey,
         settings.modelName,
-        3
+        3,
+        startEpNumber,
+        existingTitles
       );
       
       // Automatically save all generated episodes into the database!
@@ -236,7 +241,7 @@ export const SeriesDashboard: React.FC = () => {
               onClick={async () => {
                 await createEpisode({
                   seriesId: activeSeries.id,
-                  title: 'New Episode Draft',
+                  title: `Episode ${episodes.length + 1}: Custom Concept`,
                   conceptOverview: 'Write your custom episode concept description here...',
                   targetDurationSec: 45,
                   scenes: []

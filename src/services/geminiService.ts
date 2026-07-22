@@ -14,24 +14,35 @@ export async function brainstormEpisodes(
   topicDescription: string,
   apiKey: string,
   modelName: string = 'gemini-2.5-flash',
-  count: number = 3
+  count: number = 3,
+  startEpisodeNumber: number = 1,
+  existingEpisodeTitles: string[] = []
 ): Promise<Array<{ title: string; conceptOverview: string }>> {
   if (!apiKey) throw new Error('API key is missing.');
   
   const ai = new GoogleGenerativeAI(apiKey);
+  const existingContext = existingEpisodeTitles.length > 0
+    ? `Already produced episodes in this series:\n${existingEpisodeTitles.map(t => `- ${t}`).join('\n')}\n\nMake sure the new episodes logically continue the series timeline/narrative and DO NOT repeat topics covered in existing episodes.`
+    : 'This is the start of the series.';
+
   const prompt = `
 ${FACTUAL_GUARDRAIL}
 
-I am producing a YouTube Shorts series.
+I am producing a YouTube series.
 Series Title: "${seriesTitle}"
 Series Context & Topic: "${topicDescription}"
 
-Generate exactly ${count} compelling Episode Concepts for this series. Each concept should focus on a specific, fascinating micro-story or historical event that fits within the larger series topic.
+${existingContext}
+
+Generate exactly ${count} NEW compelling Episode Concepts for this series.
+Starting Episode Number: ${startEpisodeNumber}
+
+Number the titles sequentially starting from Episode ${startEpisodeNumber} (e.g. "Episode ${startEpisodeNumber}: [Catchy Title]", "Episode ${startEpisodeNumber + 1}: [Catchy Title]", etc.).
 
 Return ONLY valid JSON matching this structure:
 [
   {
-    "title": "Episode 1: [Catchy Title]",
+    "title": "Episode ${startEpisodeNumber}: [Catchy Title]",
     "conceptOverview": "A 2-3 sentence overview of the historical event and the narrative hook for the short."
   }
 ]

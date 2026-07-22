@@ -72,8 +72,8 @@ const SeriesMenuItem: React.FC<{ seriesId: string; title: string }> = ({ seriesI
   const { activeSeries, activeEpisode, setActiveSeriesId, setActiveEpisodeId } = useSeries();
   const isActive = activeSeries?.id === seriesId;
   
-  // Load episodes for this series
-  const episodes = useLiveQuery(() => db.episodes.where({ seriesId }).toArray()) || [];
+  // Load episodes for this series sorted chronologically
+  const episodes = useLiveQuery(() => db.episodes.where({ seriesId }).sortBy('createdAt')) || [];
 
   return (
     <div className="mb-2">
