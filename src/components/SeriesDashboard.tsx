@@ -377,22 +377,23 @@ export const SeriesDashboard: React.FC = () => {
                   </div>
 
                   <div className="pt-4 border-t border-slate-800/80 flex items-center justify-between gap-2">
-                    {/* Regenerate Concept Icon Button */}
-                    <div className="relative group">
-                      <button
-                        onClick={() => handleRegenerateConcept(ep.id)}
-                        disabled={isRegeneratingThis}
-                        className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors disabled:opacity-50 flex items-center justify-center"
-                        aria-label="Regenerate Concept with AI"
-                      >
-                        {isRegeneratingThis ? <Loader2 className="w-4 h-4 animate-spin text-amber-500" /> : <RefreshCw className="w-4 h-4 text-amber-500" />}
-                      </button>
-                      <div className="absolute bottom-full mb-2 left-0 hidden group-hover:block bg-slate-950 text-slate-200 text-[10px] font-bold py-1 px-2.5 rounded-md whitespace-nowrap shadow-xl border border-slate-700 z-20 pointer-events-none">
-                        Regenerate Concept with AI
-                      </div>
-                    </div>
-
+                    {/* Left Actions: Regenerate & Delete */}
                     <div className="flex items-center gap-2">
+                      {/* Regenerate Concept Icon Button */}
+                      <div className="relative group">
+                        <button
+                          onClick={() => handleRegenerateConcept(ep.id)}
+                          disabled={isRegeneratingThis}
+                          className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors disabled:opacity-50 flex items-center justify-center"
+                          aria-label="Regenerate Concept with AI"
+                        >
+                          {isRegeneratingThis ? <Loader2 className="w-4 h-4 animate-spin text-amber-500" /> : <RefreshCw className="w-4 h-4 text-amber-500" />}
+                        </button>
+                        <div className="absolute bottom-full mb-2 left-0 hidden group-hover:block bg-slate-950 text-slate-200 text-[10px] font-bold py-1 px-2.5 rounded-md whitespace-nowrap shadow-xl border border-slate-700 z-20 pointer-events-none">
+                          Regenerate Concept with AI
+                        </div>
+                      </div>
+
                       {/* Delete Episode Icon Button */}
                       <div className="relative group">
                         <button
@@ -410,19 +411,19 @@ export const SeriesDashboard: React.FC = () => {
                           Delete Episode
                         </div>
                       </div>
-                      
-                      {/* Open Storyboard Icon Button */}
-                      <div className="relative group">
-                        <button
-                          onClick={() => setActiveEpisodeId(ep.id)}
-                          className="p-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900 font-black transition-all flex items-center justify-center shadow-lg shadow-amber-500/10"
-                          aria-label="Open Storyboard Canvas"
-                        >
-                          <ChevronRight className="w-4 h-4 stroke-[3]" />
-                        </button>
-                        <div className="absolute bottom-full mb-2 right-0 hidden group-hover:block bg-slate-950 text-amber-400 text-[10px] font-bold py-1 px-2.5 rounded-md whitespace-nowrap shadow-xl border border-slate-700 z-20 pointer-events-none">
-                          Open Storyboard Canvas
-                        </div>
+                    </div>
+
+                    {/* Right Action: Open Storyboard Icon Button */}
+                    <div className="relative group">
+                      <button
+                        onClick={() => setActiveEpisodeId(ep.id)}
+                        className="p-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900 font-black transition-all flex items-center justify-center shadow-lg shadow-amber-500/10"
+                        aria-label="Open Storyboard Canvas"
+                      >
+                        <ChevronRight className="w-4 h-4 stroke-[3]" />
+                      </button>
+                      <div className="absolute bottom-full mb-2 right-0 hidden group-hover:block bg-slate-950 text-amber-400 text-[10px] font-bold py-1 px-2.5 rounded-md whitespace-nowrap shadow-xl border border-slate-700 z-20 pointer-events-none">
+                        Open Storyboard Canvas
                       </div>
                     </div>
                   </div>
