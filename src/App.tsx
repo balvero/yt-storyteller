@@ -13,12 +13,17 @@ function AppContent() {
     return sessionStorage.getItem('ytss_unlocked') === 'true';
   });
 
-  const activePassword = settings.appPassword || import.meta.env.VITE_APP_PASSWORD || '';
-  const isProtected = activePassword.trim().length > 0;
+  const envPasswordHash = import.meta.env.VITE_APP_PASSWORD_HASH || '';
+  const envPassword = import.meta.env.VITE_APP_PASSWORD || '';
+  const activeHash = settings.appPasswordHash || envPasswordHash;
+  const activePassword = settings.appPassword || envPassword;
+
+  const isProtected = activeHash.trim().length > 0 || activePassword.trim().length > 0;
 
   if (isProtected && !isUnlocked) {
     return (
       <LockScreen
+        expectedHash={activeHash}
         expectedPassword={activePassword}
         onUnlock={() => {
           sessionStorage.setItem('ytss_unlocked', 'true');

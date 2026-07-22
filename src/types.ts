@@ -45,4 +45,5 @@ export interface AppSettings {
   voiceoverLanguage: 'English' | 'Taglish' | 'Tagalog';
   aspectRatio: string;
   appPassword?: string;
+  appPasswordHash?: string;
 }

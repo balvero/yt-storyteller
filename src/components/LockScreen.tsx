@@ -1,16 +1,23 @@
 import React, { useState } from 'react';
 import { ShieldCheck, Lock, ArrowRight } from 'lucide-react';
+import { hashPassword } from '../utils/crypto';
 
 export const LockScreen: React.FC<{
-  expectedPassword: string;
+  expectedPassword?: string;
+  expectedHash?: string;
   onUnlock: () => void;
-}> = ({ expectedPassword, onUnlock }) => {
+}> = ({ expectedPassword, expectedHash, onUnlock }) => {
   const [passwordInput, setPasswordInput] = useState('');
   const [error, setError] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (passwordInput === expectedPassword) {
+    const inputHash = await hashPassword(passwordInput);
+
+    const matchHash = expectedHash && inputHash.toLowerCase() === expectedHash.toLowerCase();
+    const matchPlaintext = expectedPassword && (passwordInput === expectedPassword || inputHash.toLowerCase() === expectedPassword.toLowerCase());
+
+    if (matchHash || matchPlaintext) {
       setError(false);
       onUnlock();
     } else {
