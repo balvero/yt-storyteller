@@ -243,24 +243,25 @@ export const SeriesDashboard: React.FC = () => {
       </form>
 
       <div className="mt-12 space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 border-b border-slate-800/80 pb-5">
           <div>
-            <h3 className="text-xl font-black text-slate-100 flex items-center gap-2">
+            <h3 className="text-xl font-black text-slate-100 flex items-center gap-2.5">
               <Film className="w-5 h-5 text-amber-500" />
               Series Episodes ({episodes.length})
             </h3>
             <p className="text-xs text-slate-400 mt-1">Saved episode concepts and storyboards for this series.</p>
           </div>
 
-          <div className="flex flex-wrap gap-2.5">
+          <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={() => renumberSeriesEpisodes(activeSeries.id)}
               disabled={episodes.length === 0}
-              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-colors disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-colors disabled:opacity-50"
               title="Clean up and re-number all episodes chronologically (Episode 1, Episode 2, ...)"
             >
               <Hash className="w-3.5 h-3.5 text-amber-500" /> Fix Numbers
             </button>
+            
             <button
               onClick={async () => {
                 await createEpisode({
@@ -271,11 +272,12 @@ export const SeriesDashboard: React.FC = () => {
                   scenes: []
                 });
               }}
-              className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition-colors"
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition-colors"
             >
               <Plus className="w-4 h-4 text-amber-500" /> Manual Episode
             </button>
-            <div className="flex items-center gap-1.5 bg-slate-800 border border-slate-700 px-3 py-2 rounded-xl">
+
+            <div className="flex items-center gap-1.5 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-xl">
               <span className="text-[11px] font-bold text-slate-400 uppercase">Count:</span>
               <select
                 value={generateCount}
@@ -292,7 +294,7 @@ export const SeriesDashboard: React.FC = () => {
             <button
               onClick={handleBrainstorm}
               disabled={isBrainstorming}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900 font-extrabold text-xs transition-all disabled:opacity-60"
+              className="flex items-center gap-2 px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900 font-extrabold text-xs transition-all disabled:opacity-60 shadow-lg shadow-amber-500/10"
             >
               {isBrainstorming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
               Generate {generateCount} AI Concept{generateCount > 1 ? 's' : ''}
