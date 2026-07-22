@@ -28,6 +28,7 @@ export const SeriesDashboard: React.FC = () => {
   const { activeSeries, updateSeries, deleteSeries, createEpisode, updateEpisode, deleteEpisode, setActiveEpisodeId, settings } = useSeries();
   const [isSaving, setIsSaving] = useState(false);
   const [isBrainstorming, setIsBrainstorming] = useState(false);
+  const [generateCount, setGenerateCount] = useState<number>(3);
   const [regeneratingEpId, setRegeneratingEpId] = useState<string | null>(null);
 
   const episodes = useLiveQuery(
@@ -71,7 +72,7 @@ export const SeriesDashboard: React.FC = () => {
         activeSeries.topicDescription,
         settings.geminiApiKey,
         settings.modelName,
-        3,
+        generateCount,
         startEpNumber,
         existingTitles
       );
@@ -251,13 +252,27 @@ export const SeriesDashboard: React.FC = () => {
             >
               <Plus className="w-4 h-4 text-amber-500" /> Manual Episode
             </button>
+            <div className="flex items-center gap-1.5 bg-slate-800 border border-slate-700 px-3 py-2 rounded-xl">
+              <span className="text-[11px] font-bold text-slate-400 uppercase">Count:</span>
+              <select
+                value={generateCount}
+                onChange={(e) => setGenerateCount(Number(e.target.value))}
+                className="bg-transparent text-slate-200 text-xs font-black focus:outline-none cursor-pointer"
+              >
+                <option value={1} className="bg-slate-900 text-slate-200">1 Episode</option>
+                <option value={3} className="bg-slate-900 text-slate-200">3 Episodes</option>
+                <option value={5} className="bg-slate-900 text-slate-200">5 Episodes</option>
+                <option value={10} className="bg-slate-900 text-slate-200">10 Episodes</option>
+              </select>
+            </div>
+
             <button
               onClick={handleBrainstorm}
               disabled={isBrainstorming}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900 font-extrabold text-xs transition-all disabled:opacity-60"
             >
               {isBrainstorming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-              Generate 3 AI Concepts
+              Generate {generateCount} AI Concept{generateCount > 1 ? 's' : ''}
             </button>
           </div>
         </div>
@@ -265,7 +280,7 @@ export const SeriesDashboard: React.FC = () => {
         {isBrainstorming && (
           <div className="p-8 border border-slate-800 bg-slate-900 rounded-2xl text-center">
             <Loader2 className="w-8 h-8 animate-spin text-amber-500 mx-auto mb-3" />
-            <p className="text-slate-300 font-bold text-sm">Brainstorming & Saving 3 New Episodes...</p>
+            <p className="text-slate-300 font-bold text-sm">Brainstorming & Saving {generateCount} New Episode{generateCount > 1 ? 's' : ''}...</p>
             <p className="text-xs text-slate-500 mt-1">Consulting historical guardrails to craft micro-stories.</p>
           </div>
         )}
