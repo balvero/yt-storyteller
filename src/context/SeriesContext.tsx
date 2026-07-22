@@ -16,6 +16,7 @@ interface SeriesContextType {
   createEpisode: (episode: Omit<Episode, 'id' | 'createdAt' | 'updatedAt'>) => Promise<string>;
   updateEpisode: (id: string, updates: Partial<Episode>) => Promise<void>;
   deleteEpisode: (id: string) => Promise<void>;
+  renumberSeriesEpisodes: (seriesId: string) => Promise<void>;
   updateSettings: (updates: Partial<AppSettings>) => void;
 }
 
@@ -93,8 +94,25 @@ export const SeriesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const deleteEpisode = async (id: string) => {
+    const ep = await db.episodes.get(id);
+    const seriesId = ep?.seriesId;
     await db.episodes.delete(id);
     if (activeEpisodeId === id) setActiveEpisodeId(null);
+    if (seriesId) {
+      await renumberSeriesEpisodes(seriesId);
+    }
+  };
+
+  const renumberSeriesEpisodes = async (seriesId: string) => {
+    const eps = await db.episodes.where({ seriesId }).sortBy('createdAt');
+    for (let i = 0; i < eps.length; i++) {
+      const ep = eps[i];
+      const coreTitle = ep.title.replace(/^Episode\s*\d+:\s*/i, '').trim();
+      const newTitle = `Episode ${i + 1}: ${coreTitle}`;
+      if (ep.title !== newTitle) {
+        await db.episodes.update(ep.id, { title: newTitle, updatedAt: new Date().toISOString() });
+      }
+    }
   };
 
   const updateSettings = (updates: Partial<AppSettings>) => {
@@ -115,6 +133,7 @@ export const SeriesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       createEpisode,
       updateEpisode,
       deleteEpisode,
+      renumberSeriesEpisodes,
       updateSettings
     }}>
       {children}

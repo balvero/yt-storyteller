@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useSeries } from '../context/SeriesContext';
 import { brainstormEpisodes, regenerateSingleConcept } from '../services/geminiService';
-import { Sparkles, Loader2, Save, BookOpen, Trash2, Film, RefreshCw, ChevronRight, Plus } from 'lucide-react';
+import { Sparkles, Loader2, Save, BookOpen, Trash2, Film, RefreshCw, ChevronRight, Plus, Hash } from 'lucide-react';
 import { db } from '../db';
 import { useLiveQuery } from 'dexie-react-hooks';
 
@@ -25,7 +25,7 @@ const ART_STYLE_PRESETS = [
 ];
 
 export const SeriesDashboard: React.FC = () => {
-  const { activeSeries, updateSeries, deleteSeries, createEpisode, updateEpisode, deleteEpisode, setActiveEpisodeId, settings } = useSeries();
+  const { activeSeries, updateSeries, deleteSeries, createEpisode, updateEpisode, deleteEpisode, renumberSeriesEpisodes, setActiveEpisodeId, settings } = useSeries();
   const [isSaving, setIsSaving] = useState(false);
   const [isBrainstorming, setIsBrainstorming] = useState(false);
   const [generateCount, setGenerateCount] = useState<number>(3);
@@ -252,7 +252,15 @@ export const SeriesDashboard: React.FC = () => {
             <p className="text-xs text-slate-400 mt-1">Saved episode concepts and storyboards for this series.</p>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-2.5">
+            <button
+              onClick={() => renumberSeriesEpisodes(activeSeries.id)}
+              disabled={episodes.length === 0}
+              className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-colors disabled:opacity-50"
+              title="Clean up and re-number all episodes chronologically (Episode 1, Episode 2, ...)"
+            >
+              <Hash className="w-3.5 h-3.5 text-amber-500" /> Fix Numbers
+            </button>
             <button
               onClick={async () => {
                 await createEpisode({
@@ -263,7 +271,7 @@ export const SeriesDashboard: React.FC = () => {
                   scenes: []
                 });
               }}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition-colors"
+              className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition-colors"
             >
               <Plus className="w-4 h-4 text-amber-500" /> Manual Episode
             </button>
@@ -309,15 +317,26 @@ export const SeriesDashboard: React.FC = () => {
               return (
                 <div key={ep.id} className="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex flex-col justify-between hover:border-slate-700 transition-colors shadow-lg">
                   <div>
-                    <div className="flex items-start justify-between gap-3 mb-2">
-                      <h4 className="font-black text-slate-100 text-base leading-snug">{ep.title}</h4>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                    <div className="flex items-center justify-between gap-2 mb-3">
+                      <input
+                        type="text"
+                        value={ep.title}
+                        onChange={(e) => updateEpisode(ep.id, { title: e.target.value })}
+                        className="w-full bg-slate-950/60 border border-slate-800 rounded-lg px-2.5 py-1 text-sm font-black text-slate-100 focus:outline-none focus:border-amber-500"
+                      />
+                      <span className={`text-[10px] font-bold px-2 py-1 rounded-full shrink-0 ${
                         hasStoryboard ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-slate-800 text-slate-400'
                       }`}>
-                        {hasStoryboard ? `${ep.scenes.length} Scenes` : 'Draft Concept'}
+                        {hasStoryboard ? `${ep.scenes.length} Scenes` : 'Draft'}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-400 leading-relaxed mb-4">{ep.conceptOverview}</p>
+
+                    <textarea
+                      value={ep.conceptOverview}
+                      onChange={(e) => updateEpisode(ep.id, { conceptOverview: e.target.value })}
+                      rows={3}
+                      className="w-full bg-transparent border-none text-xs text-slate-400 leading-relaxed resize-none focus:ring-0 p-0 mb-3"
+                    />
                   </div>
 
                   <div className="pt-4 border-t border-slate-800/80 flex items-center justify-between gap-2">
