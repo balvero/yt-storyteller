@@ -4,6 +4,7 @@ export interface StoryboardScene {
   visualDirection: string;
   onScreenText: string;
   voiceoverScript: string;
+  generatedImageUrl?: string;
   aiPrompts: {
     videoPrompt: string;
     imagePrompt: string;

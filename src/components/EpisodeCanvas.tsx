@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useSeries } from '../context/SeriesContext';
 import { generateEpisodeStoryboard, regenerateSingleScene } from '../services/geminiService';
-import { Sparkles, Loader2, ChevronLeft, Download, Film, Type, Image as ImageIcon, Video, Volume2, Check, RefreshCw, Copy } from 'lucide-react';
+import { Sparkles, Loader2, ChevronLeft, Download, Film, Type, Image as ImageIcon, Video, Volume2, Check, RefreshCw, Copy, Upload, X } from 'lucide-react';
 import type { StoryboardScene } from '../types';
 
 export const EpisodeCanvas: React.FC = () => {
@@ -12,6 +12,30 @@ export const EpisodeCanvas: React.FC = () => {
   const [regeneratingSceneIdx, setRegeneratingSceneIdx] = useState<number | null>(null);
 
   if (!activeSeries || !activeEpisode) return null;
+
+  const handleImageFile = (file: File, idx: number) => {
+    if (!file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (e.target?.result) {
+        const dataUrl = e.target.result as string;
+        const newScenes = [...activeEpisode.scenes];
+        newScenes[idx] = { ...newScenes[idx], generatedImageUrl: dataUrl };
+        updateEpisode(activeEpisode.id, { scenes: newScenes });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handlePasteOnScene = (e: React.ClipboardEvent, idx: number) => {
+    const items = e.clipboardData.items;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith('image/')) {
+        const file = items[i].getAsFile();
+        if (file) handleImageFile(file, idx);
+      }
+    }
+  };
 
   const handleCopyText = (text: string, key: string) => {
     if (!text) return;
@@ -218,8 +242,62 @@ VIDEO PROMPT: ${s.aiPrompts.videoPrompt}
                   <textarea 
                     value={scene.visualDirection} 
                     onChange={e => updateScene(idx, { ...scene, visualDirection: e.target.value })}
-                    className="w-full bg-transparent border-none text-sm text-slate-300 focus:ring-0 resize-none h-20 p-0"
+                    className="w-full bg-transparent border-none text-sm text-slate-300 focus:ring-0 resize-none h-16 p-0"
                   />
+                </div>
+
+                {/* Visual Guide Image Container (Paste / Drop / Upload) */}
+                <div 
+                  onPaste={(e) => handlePasteOnScene(e, idx)}
+                  tabIndex={0}
+                  className="mt-2 outline-none rounded-xl"
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-[10px] font-black text-amber-500 uppercase tracking-wider flex items-center gap-1">
+                      <ImageIcon className="w-3 h-3" /> Scene Visual Guide
+                    </label>
+                    <span className="text-[9px] text-slate-500 font-bold">Paste (Ctrl+V) / Drop</span>
+                  </div>
+
+                  {scene.generatedImageUrl ? (
+                    <div className="relative group rounded-xl overflow-hidden border border-slate-800 bg-slate-950 max-h-48 flex items-center justify-center">
+                      <img 
+                        src={scene.generatedImageUrl} 
+                        alt={`Scene ${scene.sceneNumber} Visual Guide`}
+                        className="w-full h-full object-cover max-h-48 rounded-xl"
+                      />
+                      <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        <label className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold cursor-pointer flex items-center gap-1 shadow-lg">
+                          <Upload className="w-3.5 h-3.5 text-amber-500" /> Replace
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={(e) => e.target.files?.[0] && handleImageFile(e.target.files[0], idx)}
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => updateScene(idx, { ...scene, generatedImageUrl: undefined })}
+                          className="p-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs font-bold flex items-center gap-1 shadow-lg"
+                        >
+                          <X className="w-3.5 h-3.5" /> Remove
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <label className="border-2 border-dashed border-slate-800 hover:border-amber-500/50 bg-slate-950/40 hover:bg-slate-950/80 p-3.5 rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all group text-center">
+                      <Upload className="w-4 h-4 text-slate-600 group-hover:text-amber-500 mb-1 transition-colors" />
+                      <span className="text-xs font-bold text-slate-400 group-hover:text-slate-200 transition-colors">Paste or Upload Image</span>
+                      <span className="text-[9px] text-slate-500 mt-0.5">Click card & press Ctrl+V to paste</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={(e) => e.target.files?.[0] && handleImageFile(e.target.files[0], idx)}
+                      />
+                    </label>
+                  )}
                 </div>
               </div>
 
