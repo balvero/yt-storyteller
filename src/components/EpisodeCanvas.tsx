@@ -1,15 +1,44 @@
 import React, { useState } from 'react';
 import { useSeries } from '../context/SeriesContext';
-import { generateEpisodeStoryboard } from '../services/geminiService';
-import { Sparkles, Loader2, ChevronLeft, Download, Film, Type, Image as ImageIcon, Video, Volume2, Check } from 'lucide-react';
+import { generateEpisodeStoryboard, regenerateSingleScene } from '../services/geminiService';
+import { Sparkles, Loader2, ChevronLeft, Download, Film, Type, Image as ImageIcon, Video, Volume2, Check, RefreshCw } from 'lucide-react';
 import type { StoryboardScene } from '../types';
 
 export const EpisodeCanvas: React.FC = () => {
   const { activeSeries, activeEpisode, setActiveEpisodeId, updateEpisode, settings } = useSeries();
   const [isGenerating, setIsGenerating] = useState(false);
   const [copiedVoiceover, setCopiedVoiceover] = useState(false);
+  const [regeneratingSceneIdx, setRegeneratingSceneIdx] = useState<number | null>(null);
 
   if (!activeSeries || !activeEpisode) return null;
+
+  const handleRegenerateScene = async (idx: number) => {
+    if (!settings.geminiApiKey) {
+      alert('Please enter your Gemini API Key in Settings first.');
+      return;
+    }
+    const scene = activeEpisode.scenes[idx];
+    setRegeneratingSceneIdx(idx);
+    try {
+      const newScene = await regenerateSingleScene(
+        activeSeries.topicDescription,
+        activeSeries.globalArtStyle,
+        activeEpisode.title,
+        activeEpisode.conceptOverview,
+        scene.sceneNumber,
+        scene.timecode,
+        settings.geminiApiKey,
+        settings.modelName,
+        settings.voiceoverLanguage,
+        activeSeries.aspectRatio || '9:16'
+      );
+      updateScene(idx, newScene);
+    } catch (err: any) {
+      alert(err.message || 'Failed to regenerate scene.');
+    } finally {
+      setRegeneratingSceneIdx(null);
+    }
+  };
 
   const handleCopyVoiceovers = () => {
     const fullVoiceover = activeEpisode.scenes
@@ -154,11 +183,26 @@ VIDEO PROMPT: ${s.aiPrompts.videoPrompt}
               
               {/* Scene Number / Visuals */}
               <div className="w-full md:w-1/3 space-y-4">
-                <div className="flex items-center gap-3 border-b border-slate-800 pb-3">
-                  <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-amber-500 font-black text-sm">
-                    {scene.sceneNumber}
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-amber-500 font-black text-sm">
+                      {scene.sceneNumber}
+                    </div>
+                    <span className="text-xs font-bold text-slate-500">{scene.timecode}</span>
                   </div>
-                  <span className="text-xs font-bold text-slate-500">{scene.timecode}</span>
+                  <button
+                    onClick={() => handleRegenerateScene(idx)}
+                    disabled={regeneratingSceneIdx === idx}
+                    className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-amber-400 transition-colors disabled:opacity-50"
+                    title="Regenerate this specific scene with AI"
+                  >
+                    {regeneratingSceneIdx === idx ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-500" />
+                    ) : (
+                      <RefreshCw className="w-3.5 h-3.5 text-amber-500" />
+                    )}
+                    Regenerate Scene
+                  </button>
                 </div>
                 
                 <div className="space-y-1">

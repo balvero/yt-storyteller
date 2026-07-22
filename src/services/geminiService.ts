@@ -145,3 +145,124 @@ Return ONLY valid JSON matching this exact structure:
     throw new Error('Failed to generate the storyboard. Try again.');
   }
 }
+
+export async function regenerateSingleConcept(
+  seriesTitle: string,
+  topicDescription: string,
+  apiKey: string,
+  modelName: string = 'gemini-3.6-flash'
+): Promise<{ title: string; conceptOverview: string }> {
+  if (!apiKey) throw new Error('API key is missing.');
+  
+  const ai = new GoogleGenerativeAI(apiKey);
+  const prompt = `
+${FACTUAL_GUARDRAIL}
+
+I am producing a YouTube series.
+Series Title: "${seriesTitle}"
+Series Context & Topic: "${topicDescription}"
+
+Generate 1 fresh, compelling Episode Concept for this series focusing on a specific micro-story or historical event.
+
+Return ONLY valid JSON matching this structure:
+{
+  "title": "Episode: [Catchy Title]",
+  "conceptOverview": "A 2-3 sentence overview of the historical event and narrative hook."
+}
+`;
+
+  const model = ai.getGenerativeModel({ model: modelName });
+  const response = await model.generateContent({
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    generationConfig: { responseMimeType: 'application/json', temperature: 0.8 }
+  });
+
+  const text = response.response.text() || '{}';
+  try {
+    return JSON.parse(text);
+  } catch (err) {
+    console.error('Failed to parse single concept JSON:', text);
+    throw new Error('Failed to regenerate concept. Try again.');
+  }
+}
+
+export async function regenerateSingleScene(
+  seriesTopic: string,
+  globalArtStyle: string,
+  episodeTitle: string,
+  episodeConcept: string,
+  sceneNumber: number,
+  timecode: string,
+  apiKey: string,
+  modelName: string = 'gemini-3.6-flash',
+  voiceoverLanguage: string = 'English',
+  aspectRatio: string = '9:16'
+): Promise<StoryboardScene> {
+  if (!apiKey) throw new Error('API key is missing.');
+
+  const ai = new GoogleGenerativeAI(apiKey);
+
+  const languageInstruction = voiceoverLanguage === 'English'
+    ? 'Write the voiceover in dramatic, documentary-style English.'
+    : voiceoverLanguage === 'Tagalog'
+    ? 'Write the voiceover in dramatic Tagalog (Filipino).'
+    : 'Write the voiceover in Taglish (mixed Tagalog-English).';
+
+  const prompt = `
+${FACTUAL_GUARDRAIL}
+
+Regenerate Scene #${sceneNumber} for an episode in a YouTube series.
+Series Topic: "${seriesTopic}"
+Global Art Style: "${globalArtStyle}"
+Episode Title: "${episodeTitle}"
+Episode Concept: "${episodeConcept}"
+Target Timecode: "${timecode}"
+
+INSTRUCTIONS:
+1. Provide a brand new, dramatic, and historically accurate visual direction, voiceover script, and on-screen text for Scene ${sceneNumber}.
+2. ${languageInstruction}
+3. The image prompt MUST start with "${globalArtStyle}" and end with "--ar ${aspectRatio}".
+
+Return ONLY valid JSON matching:
+{
+  "sceneNumber": ${sceneNumber},
+  "timecode": "${timecode}",
+  "visualDirection": "...",
+  "onScreenText": "...",
+  "voiceoverScript": "...",
+  "aiPrompts": {
+    "videoPrompt": "...",
+    "imagePrompt": "${globalArtStyle}, ... --ar ${aspectRatio}",
+    "aspectRatio": "${aspectRatio}"
+  }
+}
+`;
+
+  const model = ai.getGenerativeModel({ model: modelName });
+  const response = await model.generateContent({
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    generationConfig: { responseMimeType: 'application/json', temperature: 0.8 }
+  });
+
+  const text = response.response.text() || '{}';
+  try {
+    const sc = JSON.parse(text);
+    return {
+      sceneNumber: sc.sceneNumber || sceneNumber,
+      timecode: sc.timecode || timecode,
+      visualDirection: sc.visualDirection || '',
+      onScreenText: sc.onScreenText || '',
+      voiceoverScript: sc.voiceoverScript || '',
+      aiPrompts: {
+        videoPrompt: sc.aiPrompts?.videoPrompt || '',
+        imagePrompt: sc.aiPrompts?.imagePrompt || '',
+        imageToVideoPrompt: sc.aiPrompts?.imageToVideoPrompt || '',
+        referenceInstruction: sc.aiPrompts?.referenceInstruction || '',
+        aspectRatio: sc.aiPrompts?.aspectRatio || aspectRatio
+      }
+    };
+  } catch (err) {
+    console.error('Failed to parse single scene JSON:', text);
+    throw new Error('Failed to regenerate scene. Try again.');
+  }
+}

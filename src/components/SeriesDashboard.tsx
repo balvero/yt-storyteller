@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useSeries } from '../context/SeriesContext';
-import { brainstormEpisodes } from '../services/geminiService';
-import { Sparkles, Loader2, Save, BookOpen, Trash2 } from 'lucide-react';
+import { brainstormEpisodes, regenerateSingleConcept } from '../services/geminiService';
+import { Sparkles, Loader2, Save, BookOpen, Trash2, Film, RefreshCw, ChevronRight, Plus } from 'lucide-react';
+import { db } from '../db';
+import { useLiveQuery } from 'dexie-react-hooks';
 
 const ART_STYLE_PRESETS = [
   {
@@ -23,10 +25,15 @@ const ART_STYLE_PRESETS = [
 ];
 
 export const SeriesDashboard: React.FC = () => {
-  const { activeSeries, updateSeries, deleteSeries, createEpisode, settings } = useSeries();
+  const { activeSeries, updateSeries, deleteSeries, createEpisode, updateEpisode, deleteEpisode, setActiveEpisodeId, settings } = useSeries();
   const [isSaving, setIsSaving] = useState(false);
   const [isBrainstorming, setIsBrainstorming] = useState(false);
-  const [brainstormResults, setBrainstormResults] = useState<Array<{ title: string; conceptOverview: string }>>([]);
+  const [regeneratingEpId, setRegeneratingEpId] = useState<string | null>(null);
+
+  const episodes = useLiveQuery(
+    () => activeSeries ? db.episodes.where({ seriesId: activeSeries.id }).reverse().toArray() : [],
+    [activeSeries?.id]
+  ) || [];
 
   if (!activeSeries) return null;
 
@@ -55,7 +62,6 @@ export const SeriesDashboard: React.FC = () => {
     }
 
     setIsBrainstorming(true);
-    setBrainstormResults([]);
     try {
       const results = await brainstormEpisodes(
         activeSeries.title,
@@ -64,7 +70,17 @@ export const SeriesDashboard: React.FC = () => {
         settings.modelName,
         3
       );
-      setBrainstormResults(results);
+      
+      // Automatically save all generated episodes into the database!
+      for (const concept of results) {
+        await createEpisode({
+          seriesId: activeSeries.id,
+          title: concept.title,
+          conceptOverview: concept.conceptOverview,
+          targetDurationSec: 45,
+          scenes: []
+        });
+      }
     } catch (err: any) {
       alert(err.message || 'Failed to brainstorm episodes.');
     } finally {
@@ -72,16 +88,28 @@ export const SeriesDashboard: React.FC = () => {
     }
   };
 
-  const handleCreateEpisodeFromConcept = async (concept: { title: string; conceptOverview: string }) => {
-    await createEpisode({
-      seriesId: activeSeries.id,
-      title: concept.title,
-      conceptOverview: concept.conceptOverview,
-      targetDurationSec: 45,
-      scenes: []
-    });
-    // Remove it from the brainstorm list once created
-    setBrainstormResults(prev => prev.filter(c => c.title !== concept.title));
+  const handleRegenerateConcept = async (epId: string) => {
+    if (!settings.geminiApiKey) {
+      alert('Please enter your Gemini API Key in Settings first.');
+      return;
+    }
+    setRegeneratingEpId(epId);
+    try {
+      const newConcept = await regenerateSingleConcept(
+        activeSeries.title,
+        activeSeries.topicDescription,
+        settings.geminiApiKey,
+        settings.modelName
+      );
+      await updateEpisode(epId, {
+        title: newConcept.title,
+        conceptOverview: newConcept.conceptOverview
+      });
+    } catch (err: any) {
+      alert(err.message || 'Failed to regenerate episode concept.');
+    } finally {
+      setRegeneratingEpId(null);
+    }
   };
 
   return (
@@ -193,42 +221,111 @@ export const SeriesDashboard: React.FC = () => {
         </div>
       </form>
 
-      <div className="mt-12">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-xl font-bold text-slate-100">AI Episode Brainstorming</h3>
-          <button
-            onClick={handleBrainstorm}
-            disabled={isBrainstorming}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900 font-extrabold text-sm transition-all disabled:opacity-60"
-          >
-            {isBrainstorming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-            Generate Concepts
-          </button>
+      <div className="mt-12 space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-xl font-black text-slate-100 flex items-center gap-2">
+              <Film className="w-5 h-5 text-amber-500" />
+              Series Episodes ({episodes.length})
+            </h3>
+            <p className="text-xs text-slate-400 mt-1">Saved episode concepts and storyboards for this series.</p>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={async () => {
+                await createEpisode({
+                  seriesId: activeSeries.id,
+                  title: 'New Episode Draft',
+                  conceptOverview: 'Write your custom episode concept description here...',
+                  targetDurationSec: 45,
+                  scenes: []
+                });
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition-colors"
+            >
+              <Plus className="w-4 h-4 text-amber-500" /> Manual Episode
+            </button>
+            <button
+              onClick={handleBrainstorm}
+              disabled={isBrainstorming}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900 font-extrabold text-xs transition-all disabled:opacity-60"
+            >
+              {isBrainstorming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              Generate 3 AI Concepts
+            </button>
+          </div>
         </div>
 
-        {brainstormResults.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {brainstormResults.map((concept, idx) => (
-              <div key={idx} className="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex flex-col justify-between hover:border-amber-500/50 transition-colors group">
-                <div>
-                  <h4 className="font-black text-slate-100 text-sm mb-2">{concept.title}</h4>
-                  <p className="text-xs text-slate-400 leading-relaxed">{concept.conceptOverview}</p>
-                </div>
-                <button
-                  onClick={() => handleCreateEpisodeFromConcept(concept)}
-                  className="mt-4 w-full py-2 rounded-lg bg-slate-800 hover:bg-amber-500 group-hover:text-slate-900 text-slate-300 font-bold text-xs transition-colors"
-                >
-                  Create Episode
-                </button>
-              </div>
-            ))}
+        {isBrainstorming && (
+          <div className="p-8 border border-slate-800 bg-slate-900 rounded-2xl text-center">
+            <Loader2 className="w-8 h-8 animate-spin text-amber-500 mx-auto mb-3" />
+            <p className="text-slate-300 font-bold text-sm">Brainstorming & Saving 3 New Episodes...</p>
+            <p className="text-xs text-slate-500 mt-1">Consulting historical guardrails to craft micro-stories.</p>
           </div>
         )}
-        
-        {brainstormResults.length === 0 && !isBrainstorming && (
-          <div className="p-8 border-2 border-dashed border-slate-800 rounded-2xl text-center">
+
+        {episodes.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {episodes.map((ep) => {
+              const isRegeneratingThis = regeneratingEpId === ep.id;
+              const hasStoryboard = ep.scenes && ep.scenes.length > 0;
+
+              return (
+                <div key={ep.id} className="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex flex-col justify-between hover:border-slate-700 transition-colors shadow-lg">
+                  <div>
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <h4 className="font-black text-slate-100 text-base leading-snug">{ep.title}</h4>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                        hasStoryboard ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-slate-800 text-slate-400'
+                      }`}>
+                        {hasStoryboard ? `${ep.scenes.length} Scenes` : 'Draft Concept'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 leading-relaxed mb-4">{ep.conceptOverview}</p>
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-800/80 flex items-center justify-between gap-2">
+                    <button
+                      onClick={() => handleRegenerateConcept(ep.id)}
+                      disabled={isRegeneratingThis}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-colors disabled:opacity-50"
+                      title="Regenerate this episode concept with AI"
+                    >
+                      {isRegeneratingThis ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 text-amber-500" />}
+                      Regenerate Concept
+                    </button>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => deleteEpisode(ep.id)}
+                        className="p-2 rounded-lg hover:bg-red-500/20 text-slate-500 hover:text-red-400 transition-colors"
+                        title="Delete Episode"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                      
+                      <button
+                        onClick={() => setActiveEpisodeId(ep.id)}
+                        className="flex items-center gap-1 px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-900 font-black text-xs transition-all"
+                      >
+                        Open Storyboard <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {episodes.length === 0 && !isBrainstorming && (
+          <div className="p-10 border-2 border-dashed border-slate-800 rounded-2xl text-center">
             <Sparkles className="w-8 h-8 text-slate-700 mx-auto mb-3" />
-            <p className="text-slate-500 text-sm">Click Generate Concepts to have Gemini pitch episode ideas based on your historical parameters.</p>
+            <p className="text-slate-400 font-bold text-sm mb-1">No Saved Episodes Yet</p>
+            <p className="text-slate-500 text-xs max-w-md mx-auto">
+              Click "Generate 3 AI Concepts" to brainstorm and save new historical micro-stories, or click "Manual Episode" to write your own.
+            </p>
           </div>
         )}
       </div>
