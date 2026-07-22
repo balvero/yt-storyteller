@@ -3,6 +3,25 @@ import { useSeries } from '../context/SeriesContext';
 import { brainstormEpisodes } from '../services/geminiService';
 import { Sparkles, Loader2, Save, BookOpen, Trash2 } from 'lucide-react';
 
+const ART_STYLE_PRESETS = [
+  {
+    label: 'Comic Book (Default: Modern American & DC/Marvel)',
+    prompt: 'Modern American and DC Marvel comic book art style, clean cel-shading, bold ink outlines, realistic human anatomy, vivid color gradients'
+  },
+  {
+    label: 'Cinematic 3D Animation (Pixar / DreamWorks)',
+    prompt: 'Cinematic 3D Animation, Pixar and DreamWorks style, highly detailed textures, warm volumetric lighting, expressive character design'
+  },
+  {
+    label: 'Dark Historical Oil Painting (Rembrandt)',
+    prompt: 'Dark Historical Oil Painting, Rembrandt lighting, rich chiaroscuro, textured canvas brushstrokes, dramatic atmospheric depth'
+  },
+  {
+    label: 'Retro 90s Anime (Ghibli Inspired)',
+    prompt: 'Retro Anime / 90s Cel Animation, Ghibli inspired, soft watercolor backgrounds, vintage color palette, nostalgic film grain'
+  }
+];
+
 export const SeriesDashboard: React.FC = () => {
   const { activeSeries, updateSeries, deleteSeries, createEpisode, settings } = useSeries();
   const [isSaving, setIsSaving] = useState(false);
@@ -11,11 +30,17 @@ export const SeriesDashboard: React.FC = () => {
 
   if (!activeSeries) return null;
 
+  const currentPresetMatch = ART_STYLE_PRESETS.find(p => p.prompt === activeSeries.globalArtStyle);
+  const selectedPresetLabel = currentPresetMatch ? currentPresetMatch.label : 'custom';
+
+  const handlePresetChange = (presetValue: string) => {
+    if (presetValue === 'custom') return;
+    updateSeries(activeSeries.id, { globalArtStyle: presetValue });
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
-    // update is automatically handled by the input onChange for immediate reactivity, 
-    // but we can add a visual save confirmation if we want
     setTimeout(() => setIsSaving(false), 500);
   };
 
@@ -83,7 +108,7 @@ export const SeriesDashboard: React.FC = () => {
       </div>
 
       <form onSubmit={handleSave} className="space-y-6 bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
             <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide">Series Title</label>
             <input
@@ -101,22 +126,47 @@ export const SeriesDashboard: React.FC = () => {
               onChange={(e) => updateSeries(activeSeries.id, { aspectRatio: e.target.value })}
               className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-sm font-bold text-slate-100 focus:outline-none focus:border-amber-500"
             >
-              <option value="9:16">9:16 (Vertical / Shorts)</option>
-              <option value="16:9">16:9 (Horizontal / Standard)</option>
+              <option value="9:16">9:16 (Vertical / Shorts / Reels / TikTok)</option>
+              <option value="16:9">16:9 (Horizontal / Standard YouTube)</option>
               <option value="1:1">1:1 (Square / Instagram)</option>
               <option value="4:5">4:5 (Portrait Feed)</option>
             </select>
           </div>
-          
-          <div className="space-y-2">
+        </div>
+
+        <div className="space-y-3 pt-2 border-t border-slate-800/60">
+          <div className="flex items-center justify-between">
             <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide">Global Art Style</label>
-            <input
-              type="text"
-              value={activeSeries.globalArtStyle}
-              onChange={(e) => updateSeries(activeSeries.id, { globalArtStyle: e.target.value })}
-              className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-amber-500"
-              placeholder="e.g. Modern American comic book art style, cel-shading"
-            />
+            <span className="text-xs text-amber-500 font-medium">Applied to every AI image prompt</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="block text-[11px] font-bold text-slate-500 uppercase">Choose Style Preset</label>
+              <select
+                value={selectedPresetLabel}
+                onChange={(e) => handlePresetChange(e.target.value)}
+                className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-sm font-medium text-slate-100 focus:outline-none focus:border-amber-500"
+              >
+                {ART_STYLE_PRESETS.map((preset) => (
+                  <option key={preset.label} value={preset.prompt}>
+                    {preset.label}
+                  </option>
+                ))}
+                <option value="custom">✍️ Custom / User Defined Style</option>
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-[11px] font-bold text-slate-500 uppercase">Active Art Style Prompt (Editable)</label>
+              <textarea
+                value={activeSeries.globalArtStyle}
+                onChange={(e) => updateSeries(activeSeries.id, { globalArtStyle: e.target.value })}
+                rows={2}
+                className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-amber-500 resize-none font-mono leading-relaxed"
+                placeholder="Enter custom art style description..."
+              />
+            </div>
           </div>
         </div>
 

@@ -15,7 +15,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
     const id = await createSeries({
       title: 'New History Series',
       topicDescription: '',
-      globalArtStyle: 'Modern cinematic documentary style, 85mm lens, dramatic lighting',
+      globalArtStyle: 'Modern American and DC Marvel comic book art style, clean cel-shading, bold ink outlines, realistic human anatomy, vivid color gradients',
       targetAudience: 'History enthusiasts, ages 18-35',
       aspectRatio: '9:16',
     });
