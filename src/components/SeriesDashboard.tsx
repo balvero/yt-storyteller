@@ -134,7 +134,7 @@ export const SeriesDashboard: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-8 pb-20">
+    <div className="max-w-7xl mx-auto p-8 pb-20">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h2 className="text-3xl font-black text-slate-100 flex items-center gap-3">

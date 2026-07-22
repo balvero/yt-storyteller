@@ -180,7 +180,7 @@ VIDEO PROMPT: ${s.aiPrompts.videoPrompt}
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-6 pb-20">
+    <div className="max-w-7xl mx-auto p-6 pb-20">
       <button 
         onClick={() => setActiveEpisodeId(null)}
         className="flex items-center gap-2 text-slate-400 hover:text-amber-500 transition-colors mb-6 text-sm font-bold"
