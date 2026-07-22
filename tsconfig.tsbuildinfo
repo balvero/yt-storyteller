@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/db.ts","./src/main.tsx","./src/types.ts","./src/components/episodecanvas.tsx","./src/components/seriesdashboard.tsx","./src/components/settingsmodal.tsx","./src/components/sidebar.tsx","./src/context/seriescontext.tsx","./src/services/geminiservice.ts"],"version":"5.9.3"}
