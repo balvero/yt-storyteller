@@ -396,7 +396,11 @@ export const SeriesDashboard: React.FC = () => {
                       {/* Delete Episode Icon Button */}
                       <div className="relative group">
                         <button
-                          onClick={() => deleteEpisode(ep.id)}
+                          onClick={() => {
+                            if (confirm(`Are you sure you want to delete "${ep.title}"?`)) {
+                              deleteEpisode(ep.id);
+                            }
+                          }}
                           className="p-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors flex items-center justify-center"
                           aria-label="Delete Episode"
                         >
