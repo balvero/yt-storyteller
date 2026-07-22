@@ -1,9 +1,79 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useSeries } from '../context/SeriesContext';
-import { KeyRound, X } from 'lucide-react';
+import { KeyRound, X, Download, Upload, Database } from 'lucide-react';
+import { db } from '../db';
 
 export const SettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { settings, updateSettings } = useSeries();
+  const [isRestoring, setIsRestoring] = useState(false);
+
+  const handleBackup = async () => {
+    try {
+      const allSeries = await db.series.toArray();
+      const allEpisodes = await db.episodes.toArray();
+      const backupObject = {
+        app: 'YouTubeShortsStoryteller',
+        version: '1.0',
+        exportedAt: new Date().toISOString(),
+        series: allSeries,
+        episodes: allEpisodes,
+        settings: settings
+      };
+
+      const jsonStr = JSON.stringify(backupObject, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const dateStr = new Date().toISOString().split('T')[0];
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `yt_storyteller_backup_${dateStr}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Backup failed:', err);
+      alert('Failed to export backup.');
+    }
+  };
+
+  const handleRestoreFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        setIsRestoring(true);
+        const content = e.target?.result as string;
+        const data = JSON.parse(content);
+
+        if (!data.series || !Array.isArray(data.series) || !data.episodes || !Array.isArray(data.episodes)) {
+          alert('Invalid backup file format.');
+          return;
+        }
+
+        const shouldOverwrite = confirm(
+          `Backup contains ${data.series.length} series and ${data.episodes.length} episodes.\n\nClick OK to OVERWRITE existing local data, or CANCEL to MERGE with existing data.`
+        );
+
+        if (shouldOverwrite) {
+          await db.series.clear();
+          await db.episodes.clear();
+        }
+
+        await db.series.bulkPut(data.series);
+        await db.episodes.bulkPut(data.episodes);
+
+        if (data.settings) {
+          updateSettings(data.settings);
+        }
+
+        alert(`Successfully restored ${data.series.length} series and ${data.episodes.length} episodes!`);
+      } catch (err) {
+        console.error('Failed to restore backup:', err);
+        alert('Error parsing backup JSON file.');
+      } finally {
+        setIsRestoring(false);
+      }
+    };
+    reader.readAsText(file);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
@@ -11,14 +81,14 @@ export const SettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
         <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/50">
           <h2 className="text-lg font-black text-slate-100 flex items-center gap-2">
             <KeyRound className="w-5 h-5 text-amber-500" />
-            App Settings
+            App Settings & Data
           </h2>
           <button onClick={onClose} className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="p-5 flex flex-col gap-5">
+        <div className="p-5 flex flex-col gap-5 max-h-[80vh] overflow-y-auto">
           <div className="space-y-2">
             <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide">
               Google Gemini API Key
@@ -67,6 +137,38 @@ export const SettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
             <p className="text-xs text-slate-500">
               Included directly in image & video generation prompts (e.g. --ar 9:16).
             </p>
+          </div>
+
+          {/* Backup / Restore Section */}
+          <div className="space-y-3 pt-4 border-t border-slate-800">
+            <label className="flex items-center gap-2 text-xs font-bold text-slate-300 uppercase tracking-wide">
+              <Database className="w-4 h-4 text-amber-500" /> Backup & Restore Data
+            </label>
+            <p className="text-xs text-slate-400">
+              Export all your series, episodes, storyboards, and image visual guides to a JSON file to transfer between devices or save backups.
+            </p>
+            
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <button
+                type="button"
+                onClick={handleBackup}
+                className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-colors border border-slate-700"
+              >
+                <Download className="w-4 h-4 text-amber-500" /> Export Backup
+              </button>
+
+              <label className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition-colors border border-slate-700 cursor-pointer">
+                <Upload className="w-4 h-4 text-amber-500" />
+                {isRestoring ? 'Restoring...' : 'Restore Backup'}
+                <input
+                  type="file"
+                  accept=".json"
+                  className="hidden"
+                  onChange={(e) => e.target.files?.[0] && handleRestoreFile(e.target.files[0])}
+                  disabled={isRestoring}
+                />
+              </label>
+            </div>
           </div>
         </div>
 
