@@ -1,14 +1,26 @@
 import React, { useState } from 'react';
 import { useSeries } from '../context/SeriesContext';
 import { generateEpisodeStoryboard } from '../services/geminiService';
-import { Sparkles, Loader2, ChevronLeft, Download, Film, Type, Image as ImageIcon, Video } from 'lucide-react';
+import { Sparkles, Loader2, ChevronLeft, Download, Film, Type, Image as ImageIcon, Video, Volume2, Check } from 'lucide-react';
 import type { StoryboardScene } from '../types';
 
 export const EpisodeCanvas: React.FC = () => {
   const { activeSeries, activeEpisode, setActiveEpisodeId, updateEpisode, settings } = useSeries();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [copiedVoiceover, setCopiedVoiceover] = useState(false);
 
   if (!activeSeries || !activeEpisode) return null;
+
+  const handleCopyVoiceovers = () => {
+    const fullVoiceover = activeEpisode.scenes
+      .map((s) => s.voiceoverScript.trim())
+      .filter(Boolean)
+      .join('\n\n');
+
+    navigator.clipboard.writeText(fullVoiceover);
+    setCopiedVoiceover(true);
+    setTimeout(() => setCopiedVoiceover(false), 2000);
+  };
 
   const handleGenerate = async () => {
     if (!settings.geminiApiKey) {
@@ -80,7 +92,24 @@ VIDEO PROMPT: ${s.aiPrompts.videoPrompt}
           <h2 className="text-2xl font-black text-slate-100 mt-1">{activeEpisode.title}</h2>
           <p className="text-slate-400 text-sm mt-2 max-w-2xl">{activeEpisode.conceptOverview}</p>
         </div>
-        <div className="flex gap-3 shrink-0">
+        <div className="flex flex-wrap gap-3 shrink-0">
+          <button
+            onClick={handleCopyVoiceovers}
+            disabled={activeEpisode.scenes.length === 0}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm transition-colors disabled:opacity-50"
+            title="Copy combined scene voiceovers for ElevenLabs"
+          >
+            {copiedVoiceover ? (
+              <>
+                <Check className="w-4 h-4 text-emerald-400" />
+                <span className="text-emerald-400">Copied!</span>
+              </>
+            ) : (
+              <>
+                <Volume2 className="w-4 h-4 text-amber-500" /> Copy Voiceovers (ElevenLabs)
+              </>
+            )}
+          </button>
           <button
             onClick={handleExport}
             disabled={activeEpisode.scenes.length === 0}
