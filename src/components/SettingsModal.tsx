@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useSeries } from '../context/SeriesContext';
-import { KeyRound, X, Download, Upload, Database } from 'lucide-react';
+import { KeyRound, X, Download, Upload, Database, ShieldCheck } from 'lucide-react';
 import { db } from '../db';
 
 export const SettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
@@ -136,6 +136,22 @@ export const SettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
             </select>
             <p className="text-xs text-slate-500">
               Included directly in image & video generation prompts (e.g. --ar 9:16).
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wide">
+              <ShieldCheck className="w-3.5 h-3.5 text-amber-500" /> App Passcode Protection
+            </label>
+            <input
+              type="password"
+              value={settings.appPassword || ''}
+              onChange={(e) => updateSettings({ appPassword: e.target.value })}
+              className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-amber-500"
+              placeholder="Set a master app passcode (e.g. 1234)..."
+            />
+            <p className="text-xs text-slate-500">
+              Protects app access with a password lock screen on launch. Leave empty for no password. You can also set VITE_APP_PASSWORD on Vercel!
             </p>
           </div>
 

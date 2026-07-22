@@ -211,7 +211,7 @@ export const SeriesDashboard: React.FC = () => {
               <textarea
                 value={activeSeries.globalArtStyle}
                 onChange={(e) => updateSeries(activeSeries.id, { globalArtStyle: e.target.value })}
-                rows={2}
+                rows={3}
                 className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-amber-500 resize-none font-mono leading-relaxed"
                 placeholder="Enter custom art style description..."
               />

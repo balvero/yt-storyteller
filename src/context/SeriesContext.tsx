@@ -26,7 +26,8 @@ const defaultSettings: AppSettings = {
   geminiApiKey: '',
   modelName: 'gemini-3.6-flash',
   voiceoverLanguage: 'English',
-  aspectRatio: '9:16'
+  aspectRatio: '9:16',
+  appPassword: import.meta.env.VITE_APP_PASSWORD || ''
 };
 
 export const SeriesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {

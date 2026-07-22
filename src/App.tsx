@@ -4,10 +4,29 @@ import { Sidebar } from './components/Sidebar';
 import { SettingsModal } from './components/SettingsModal';
 import { SeriesDashboard } from './components/SeriesDashboard';
 import { EpisodeCanvas } from './components/EpisodeCanvas';
+import { LockScreen } from './components/LockScreen';
 
 function AppContent() {
-  const { activeSeries, activeEpisode } = useSeries();
+  const { activeSeries, activeEpisode, settings } = useSeries();
   const [showSettings, setShowSettings] = useState(false);
+  const [isUnlocked, setIsUnlocked] = useState<boolean>(() => {
+    return sessionStorage.getItem('ytss_unlocked') === 'true';
+  });
+
+  const activePassword = settings.appPassword || import.meta.env.VITE_APP_PASSWORD || '';
+  const isProtected = activePassword.trim().length > 0;
+
+  if (isProtected && !isUnlocked) {
+    return (
+      <LockScreen
+        expectedPassword={activePassword}
+        onUnlock={() => {
+          sessionStorage.setItem('ytss_unlocked', 'true');
+          setIsUnlocked(true);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="flex h-screen bg-slate-950 text-slate-100 overflow-hidden font-sans">
