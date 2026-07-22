@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useSeries } from '../context/SeriesContext';
 import { brainstormEpisodes, regenerateSingleConcept } from '../services/geminiService';
-import { Sparkles, Loader2, Save, BookOpen, Trash2, Film, RefreshCw, ChevronRight, Plus, Hash } from 'lucide-react';
+import { Sparkles, Loader2, Save, BookOpen, Trash2, Film, RefreshCw, ChevronRight, Plus, Hash, CheckCircle2 } from 'lucide-react';
 import { db } from '../db';
 import { useLiveQuery } from 'dexie-react-hooks';
 
@@ -337,6 +337,41 @@ export const SeriesDashboard: React.FC = () => {
                       rows={3}
                       className="w-full bg-transparent border-none text-xs text-slate-400 leading-relaxed resize-none focus:ring-0 p-0 mb-3"
                     />
+
+                    {/* Uploaded / Completion Status */}
+                    <div className="flex items-center justify-between bg-slate-950/40 p-2 rounded-xl border border-slate-800/80 mb-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextCompleted = !ep.isCompleted;
+                          const today = new Date().toISOString().split('T')[0];
+                          updateEpisode(ep.id, {
+                            isCompleted: nextCompleted,
+                            completedAt: nextCompleted ? (ep.completedAt || today) : undefined
+                          });
+                        }}
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-extrabold transition-all ${
+                          ep.isCompleted
+                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                            : 'bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700'
+                        }`}
+                      >
+                        <CheckCircle2 className={`w-3.5 h-3.5 ${ep.isCompleted ? 'text-emerald-400' : 'text-slate-500'}`} />
+                        {ep.isCompleted ? 'Uploaded' : 'Mark Uploaded'}
+                      </button>
+
+                      {ep.isCompleted && (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase">Date:</span>
+                          <input
+                            type="date"
+                            value={ep.completedAt || new Date().toISOString().split('T')[0]}
+                            onChange={(e) => updateEpisode(ep.id, { completedAt: e.target.value })}
+                            className="bg-slate-900 border border-slate-700 rounded-md px-2 py-0.5 text-xs font-mono font-bold text-emerald-300 focus:outline-none focus:border-amber-500 cursor-pointer"
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="pt-4 border-t border-slate-800/80 flex items-center justify-between gap-2">

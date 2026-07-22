@@ -1,6 +1,6 @@
 import React from 'react';
 import { useSeries } from '../context/SeriesContext';
-import { Plus, Settings, BookOpen, Film } from 'lucide-react';
+import { Plus, Settings, BookOpen, Film, CheckCircle2 } from 'lucide-react';
 import { db } from '../db';
 import { useLiveQuery } from 'dexie-react-hooks';
 
@@ -100,7 +100,11 @@ const SeriesMenuItem: React.FC<{ seriesId: string; title: string }> = ({ seriesI
                 activeEpisode?.id === ep.id ? 'bg-slate-800/80 text-amber-400 font-bold' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800/30'
               }`}
             >
-              <Film className="w-3 h-3 shrink-0" />
+              {ep.isCompleted ? (
+                <CheckCircle2 className="w-3 h-3 shrink-0 text-emerald-400" />
+              ) : (
+                <Film className="w-3 h-3 shrink-0" />
+              )}
               <span className="truncate">{ep.title}</span>
             </button>
           ))}

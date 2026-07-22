@@ -20,6 +20,8 @@ export interface Episode {
   conceptOverview: string;
   targetDurationSec: number;
   scenes: StoryboardScene[];
+  isCompleted?: boolean;
+  completedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
