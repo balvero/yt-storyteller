@@ -30,6 +30,7 @@ export interface Series {
   topicDescription: string;
   globalArtStyle: string;
   targetAudience: string;
+  aspectRatio?: string;
   masterReferenceUrl?: string; // e.g. a character sheet or style reference image
   createdAt: string;
   updatedAt: string;

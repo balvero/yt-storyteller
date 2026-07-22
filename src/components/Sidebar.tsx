@@ -17,6 +17,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onOpenSettings }) => {
       topicDescription: '',
       globalArtStyle: 'Modern cinematic documentary style, 85mm lens, dramatic lighting',
       targetAudience: 'History enthusiasts, ages 18-35',
+      aspectRatio: '9:16',
     });
     setActiveSeriesId(id);
     setActiveEpisodeId(null);

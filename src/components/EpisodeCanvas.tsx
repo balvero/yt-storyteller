@@ -40,7 +40,7 @@ export const EpisodeCanvas: React.FC = () => {
         settings.geminiApiKey,
         settings.modelName,
         settings.voiceoverLanguage,
-        settings.aspectRatio || '9:16'
+        activeSeries.aspectRatio || '9:16'
       );
       updateEpisode(activeEpisode.id, { scenes });
     } catch (err: any) {
