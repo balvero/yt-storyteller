@@ -1,16 +1,24 @@
 import React, { useState } from 'react';
 import { useSeries } from '../context/SeriesContext';
 import { generateEpisodeStoryboard, regenerateSingleScene } from '../services/geminiService';
-import { Sparkles, Loader2, ChevronLeft, Download, Film, Type, Image as ImageIcon, Video, Volume2, Check, RefreshCw } from 'lucide-react';
+import { Sparkles, Loader2, ChevronLeft, Download, Film, Type, Image as ImageIcon, Video, Volume2, Check, RefreshCw, Copy } from 'lucide-react';
 import type { StoryboardScene } from '../types';
 
 export const EpisodeCanvas: React.FC = () => {
   const { activeSeries, activeEpisode, setActiveEpisodeId, updateEpisode, settings } = useSeries();
   const [isGenerating, setIsGenerating] = useState(false);
   const [copiedVoiceover, setCopiedVoiceover] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [regeneratingSceneIdx, setRegeneratingSceneIdx] = useState<number | null>(null);
 
   if (!activeSeries || !activeEpisode) return null;
+
+  const handleCopyText = (text: string, key: string) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 1800);
+  };
 
   const handleRegenerateScene = async (idx: number) => {
     if (!settings.geminiApiKey) {
@@ -238,15 +246,58 @@ VIDEO PROMPT: ${s.aiPrompts.videoPrompt}
               {/* AI Prompts */}
               <div className="w-full md:w-1/3 space-y-4 md:border-l border-slate-800 md:pl-6">
                 <div className="space-y-1">
-                  <label className="flex items-center gap-1.5 text-[10px] font-black text-amber-500 uppercase tracking-wider"><ImageIcon className="w-3 h-3" /> Image Prompt (Midjourney/Flux)</label>
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-1.5 text-[10px] font-black text-amber-500 uppercase tracking-wider">
+                      <ImageIcon className="w-3 h-3" /> Image Prompt (Midjourney/Flux)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyText(scene.aiPrompts.imagePrompt, `img-${idx}`)}
+                      className="flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-amber-400 transition-colors"
+                      title="Copy Image Prompt"
+                    >
+                      {copiedKey === `img-${idx}` ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-400" />
+                          <span className="text-emerald-400">Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" /> Copy
+                        </>
+                      )}
+                    </button>
+                  </div>
                   <textarea 
                     value={scene.aiPrompts.imagePrompt} 
                     onChange={e => updateScene(idx, { ...scene, aiPrompts: { ...scene.aiPrompts, imagePrompt: e.target.value } })}
                     className="w-full bg-slate-950/50 rounded-lg border border-slate-800 text-[11px] text-slate-400 focus:ring-1 focus:ring-amber-500 focus:outline-none resize-none h-20 p-2 font-mono"
                   />
                 </div>
+
                 <div className="space-y-1">
-                  <label className="flex items-center gap-1.5 text-[10px] font-black text-amber-500 uppercase tracking-wider"><Video className="w-3 h-3" /> Video Prompt (Runway/Kling)</label>
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-1.5 text-[10px] font-black text-amber-500 uppercase tracking-wider">
+                      <Video className="w-3 h-3" /> Video Prompt (Runway/Kling)
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyText(scene.aiPrompts.videoPrompt, `vid-${idx}`)}
+                      className="flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-amber-400 transition-colors"
+                      title="Copy Video Prompt"
+                    >
+                      {copiedKey === `vid-${idx}` ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-400" />
+                          <span className="text-emerald-400">Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" /> Copy
+                        </>
+                      )}
+                    </button>
+                  </div>
                   <textarea 
                     value={scene.aiPrompts.videoPrompt} 
                     onChange={e => updateScene(idx, { ...scene, aiPrompts: { ...scene.aiPrompts, videoPrompt: e.target.value } })}
