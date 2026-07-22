@@ -49,6 +49,25 @@ export const SettingsModal: React.FC<{ onClose: () => void }> = ({ onClose }) =>
               <option value="gemini-2.5-pro">Gemini 2.5 Pro (Advanced Reasoning)</option>
             </select>
           </div>
+
+          <div className="space-y-2">
+            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide">
+              Default Aspect Ratio
+            </label>
+            <select
+              value={settings.aspectRatio || '9:16'}
+              onChange={(e) => updateSettings({ aspectRatio: e.target.value })}
+              className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-amber-500"
+            >
+              <option value="9:16">9:16 (Vertical / Shorts / Reels / TikTok)</option>
+              <option value="16:9">16:9 (Horizontal / Standard YouTube)</option>
+              <option value="1:1">1:1 (Square / Instagram)</option>
+              <option value="4:5">4:5 (Portrait Feed)</option>
+            </select>
+            <p className="text-xs text-slate-500">
+              Included directly in image & video generation prompts (e.g. --ar 9:16).
+            </p>
+          </div>
         </div>
 
         <div className="p-5 border-t border-slate-800 bg-slate-900/50 flex justify-end">

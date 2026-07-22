@@ -39,7 +39,8 @@ export const EpisodeCanvas: React.FC = () => {
         activeSeries.masterReferenceUrl,
         settings.geminiApiKey,
         settings.modelName,
-        settings.voiceoverLanguage
+        settings.voiceoverLanguage,
+        settings.aspectRatio || '9:16'
       );
       updateEpisode(activeEpisode.id, { scenes });
     } catch (err: any) {

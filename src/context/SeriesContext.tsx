@@ -24,7 +24,8 @@ const SeriesContext = createContext<SeriesContextType | undefined>(undefined);
 const defaultSettings: AppSettings = {
   geminiApiKey: '',
   modelName: 'gemini-3.6-flash',
-  voiceoverLanguage: 'English'
+  voiceoverLanguage: 'English',
+  aspectRatio: '9:16'
 };
 
 export const SeriesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {

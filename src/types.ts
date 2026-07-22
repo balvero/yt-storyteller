@@ -39,4 +39,5 @@ export interface AppSettings {
   geminiApiKey: string;
   modelName: string;
   voiceoverLanguage: 'English' | 'Taglish' | 'Tagalog';
+  aspectRatio: string;
 }

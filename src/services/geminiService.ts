@@ -63,7 +63,8 @@ export async function generateEpisodeStoryboard(
   masterReferenceUrl: string | undefined,
   apiKey: string,
   modelName: string = 'gemini-2.5-flash',
-  voiceoverLanguage: string = 'English'
+  voiceoverLanguage: string = 'English',
+  aspectRatio: string = '9:16'
 ): Promise<StoryboardScene[]> {
   if (!apiKey) throw new Error('API key is missing.');
 
@@ -82,10 +83,11 @@ export async function generateEpisodeStoryboard(
   const prompt = `
 ${FACTUAL_GUARDRAIL}
 
-You are generating a scene-by-scene storyboard for a vertical 9:16 YouTube Short.
+You are generating a scene-by-scene storyboard for a video with a ${aspectRatio} aspect ratio.
 Series Topic: "${seriesTopic}"
 Global Art Style: "${globalArtStyle}"
 Target Audience: "${targetAudience}"
+Target Aspect Ratio: "${aspectRatio}"
 
 Episode Title: "${episodeTitle}"
 Episode Concept: "${episodeConcept}"
@@ -94,7 +96,7 @@ INSTRUCTIONS:
 1. Break down the episode into 4 to 6 scenes. Total video duration should be around 30-60 seconds.
 2. The Hook (Scene 1) must instantly grab the audience's attention with a compelling visual and opening line.
 3. ${languageInstruction} The voiceover must be historically/factually accurate and gripping.
-4. Generate AI Image and Video prompts for each scene. Every image prompt MUST begin with the Global Art Style to ensure consistency across the video.
+4. Generate AI Image and Video prompts for each scene. Every image prompt MUST begin with the Global Art Style and end with "--ar ${aspectRatio}" (e.g. "${globalArtStyle}, [scene detail] --ar ${aspectRatio}") to enforce visual consistency and frame aspect ratio across Midjourney, Flux, Runway, and Kling.
 
 Return ONLY valid JSON matching this exact structure:
 [
@@ -106,9 +108,9 @@ Return ONLY valid JSON matching this exact structure:
     "voiceoverScript": "The historically accurate narrator script...",
     "aiPrompts": {
       "videoPrompt": "Prompt for Runway Gen-3/Kling describing camera movement...",
-      "imagePrompt": "${globalArtStyle}, [specific scene details], vertical 9:16 aspect ratio...",
+      "imagePrompt": "${globalArtStyle}, [specific scene details] --ar ${aspectRatio}",
       "referenceInstruction": "${srefInstruction}",
-      "aspectRatio": "9:16"
+      "aspectRatio": "${aspectRatio}"
     }
   }
 ]
