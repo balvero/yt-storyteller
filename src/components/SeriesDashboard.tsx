@@ -77,11 +77,26 @@ export const SeriesDashboard: React.FC = () => {
         existingTitles
       );
       
-      // Automatically save all generated episodes into the database!
+      const normalize = (str: string) => str.replace(/^Episode\s*\d+:\s*/i, '').trim().toLowerCase();
+      const seenTitles = new Set(episodes.map(e => normalize(e.title)));
+      let currentEpNum = episodes.length + 1;
+
+      // Deduplicate and save unique episodes
       for (const concept of results) {
+        const normTitle = normalize(concept.title);
+        if (seenTitles.has(normTitle)) {
+          console.warn('Skipping duplicate episode concept:', concept.title);
+          continue;
+        }
+        seenTitles.add(normTitle);
+
+        const coreTitle = concept.title.replace(/^Episode\s*\d+:\s*/i, '').trim();
+        const formattedTitle = `Episode ${currentEpNum}: ${coreTitle}`;
+        currentEpNum++;
+
         await createEpisode({
           seriesId: activeSeries.id,
-          title: concept.title,
+          title: formattedTitle,
           conceptOverview: concept.conceptOverview,
           targetDurationSec: 45,
           scenes: []

@@ -22,8 +22,12 @@ export async function brainstormEpisodes(
   
   const ai = new GoogleGenerativeAI(apiKey);
   const existingContext = existingEpisodeTitles.length > 0
-    ? `Already produced episodes in this series:\n${existingEpisodeTitles.map(t => `- ${t}`).join('\n')}\n\nMake sure the new episodes logically continue the series timeline/narrative and DO NOT repeat topics covered in existing episodes.`
-    : 'This is the start of the series.';
+    ? `CRITICAL NO-DUPLICATION DIRECTIVE:
+Existing episodes already created in this series:
+${existingEpisodeTitles.map(t => `- ${t}`).join('\n')}
+
+Each new episode MUST focus on a completely distinct, non-overlapping historical event, angle, or micro-story. You MUST NOT repeat, duplicate, or re-hash any topics, events, or titles already present in the existing episodes list above.`
+    : 'This is the first batch of episodes for this series.';
 
   const prompt = `
 ${FACTUAL_GUARDRAIL}
