@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useSeries } from '../context/SeriesContext';
 import { generateEpisodeStoryboard, regenerateSingleScene } from '../services/geminiService';
-import { Sparkles, Loader2, ChevronLeft, Download, Film, Type, Image as ImageIcon, Video, Volume2, Check, RefreshCw, Copy, Upload, X } from 'lucide-react';
+import { Sparkles, Loader2, ChevronLeft, Download, Film, Type, Image as ImageIcon, Video, Volume2, Check, RefreshCw, Copy, Upload, X, Archive } from 'lucide-react';
 import type { StoryboardScene } from '../types';
 
 export const EpisodeCanvas: React.FC = () => {
@@ -10,8 +10,48 @@ export const EpisodeCanvas: React.FC = () => {
   const [copiedVoiceover, setCopiedVoiceover] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [regeneratingSceneIdx, setRegeneratingSceneIdx] = useState<number | null>(null);
+  const [isExportingZip, setIsExportingZip] = useState(false);
 
   if (!activeSeries || !activeEpisode) return null;
+
+  const handleExportImagesZip = async () => {
+    const scenesWithImages = activeEpisode.scenes.filter(s => !!s.generatedImageUrl);
+    if (scenesWithImages.length === 0) {
+      alert('No visual guide images have been added yet. Paste or upload images to your scenes first!');
+      return;
+    }
+
+    setIsExportingZip(true);
+    try {
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+
+      scenesWithImages.forEach((s) => {
+        if (s.generatedImageUrl) {
+          const parts = s.generatedImageUrl.split(',');
+          const mimeMatch = parts[0].match(/:(.*?);/);
+          const ext = mimeMatch ? mimeMatch[1].split('/')[1] || 'png' : 'png';
+          const base64Data = parts[1];
+
+          zip.file(`Scene_${s.sceneNumber}.${ext}`, base64Data, { base64: true });
+        }
+      });
+
+      const content = await zip.generateAsync({ type: 'blob' });
+      const cleanTitle = activeEpisode.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      const url = URL.createObjectURL(content);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${cleanTitle}_images.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed to generate ZIP archive:', err);
+      alert('Failed to export ZIP archive.');
+    } finally {
+      setIsExportingZip(false);
+    }
+  };
 
   const handleImageFile = (file: File, idx: number) => {
     if (!file.type.startsWith('image/')) return;
@@ -180,6 +220,15 @@ VIDEO PROMPT: ${s.aiPrompts.videoPrompt}
             <Download className="w-4 h-4 text-amber-500" /> Export Script
           </button>
           <button
+            onClick={handleExportImagesZip}
+            disabled={isExportingZip || !activeEpisode.scenes.some(s => !!s.generatedImageUrl)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm transition-colors disabled:opacity-50"
+            title="Export all scene visual guide images into a ZIP file"
+          >
+            {isExportingZip ? <Loader2 className="w-4 h-4 animate-spin text-amber-500" /> : <Archive className="w-4 h-4 text-amber-500" />}
+            Export Images (.zip)
+          </button>
+          <button
             onClick={handleGenerate}
             disabled={isGenerating}
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900 font-extrabold text-sm transition-all disabled:opacity-60"
@@ -267,6 +316,14 @@ VIDEO PROMPT: ${s.aiPrompts.videoPrompt}
                         className="w-full h-full object-cover max-h-48 rounded-xl"
                       />
                       <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                        <a 
+                          href={scene.generatedImageUrl} 
+                          download={`Scene_${scene.sceneNumber}.png`}
+                          className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1 shadow-lg"
+                          title="Download Image"
+                        >
+                          <Download className="w-3.5 h-3.5 text-amber-500" /> Save
+                        </a>
                         <label className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold cursor-pointer flex items-center gap-1 shadow-lg">
                           <Upload className="w-3.5 h-3.5 text-amber-500" /> Replace
                           <input 
@@ -281,7 +338,7 @@ VIDEO PROMPT: ${s.aiPrompts.videoPrompt}
                           onClick={() => updateScene(idx, { ...scene, generatedImageUrl: undefined })}
                           className="p-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs font-bold flex items-center gap-1 shadow-lg"
                         >
-                          <X className="w-3.5 h-3.5" /> Remove
+                          <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
