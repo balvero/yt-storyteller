@@ -319,14 +319,15 @@ export const SeriesDashboard: React.FC = () => {
               return (
                 <div key={ep.id} className="bg-slate-900 border border-slate-800 p-5 rounded-2xl flex flex-col justify-between hover:border-slate-700 transition-colors shadow-lg">
                   <div>
-                    <div className="flex items-center justify-between gap-2 mb-3">
-                      <input
-                        type="text"
-                        value={ep.title}
-                        onChange={(e) => updateEpisode(ep.id, { title: e.target.value })}
-                        className="w-full bg-slate-950/60 border border-slate-800 rounded-lg px-2.5 py-1 text-sm font-black text-slate-100 focus:outline-none focus:border-amber-500"
-                      />
-                      <span className={`text-[10px] font-bold px-2 py-1 rounded-full shrink-0 ${
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <h4
+                        onClick={() => setActiveEpisodeId(ep.id)}
+                        className="font-black text-slate-100 text-base leading-snug hover:text-amber-400 cursor-pointer transition-colors"
+                        title="Click to open storyboard canvas"
+                      >
+                        {ep.title}
+                      </h4>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
                         hasStoryboard ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-slate-800 text-slate-400'
                       }`}>
                         {hasStoryboard ? `${ep.scenes.length} Scenes` : 'Draft'}
