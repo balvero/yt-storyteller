@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useSeries } from '../context/SeriesContext';
 import { generateEpisodeStoryboard, regenerateSingleScene, generateImageToVideoPrompt, generateYouTubeMetadata } from '../services/geminiService';
-import { Sparkles, Loader2, ChevronLeft, Download, Film, Type, Image as ImageIcon, Video, Volume2, Check, RefreshCw, Copy, Upload, X, Archive, Youtube, Tag, FileText } from 'lucide-react';
+import { Sparkles, Loader2, ChevronLeft, Download, Film, Type, Image as ImageIcon, Video, Volume2, Check, RefreshCw, Copy, Upload, X, Archive, Youtube, Tag, FileText, CheckCircle2 } from 'lucide-react';
 import type { StoryboardScene } from '../types';
 
 export const EpisodeCanvas: React.FC = () => {
@@ -81,7 +81,34 @@ export const EpisodeCanvas: React.FC = () => {
       if (e.target?.result) {
         const dataUrl = e.target.result as string;
         const newScenes = [...activeEpisode.scenes];
-        newScenes[idx] = { ...newScenes[idx], generatedImageUrl: dataUrl };
+        const targetScene = newScenes[idx];
+        const autoComplete = !!targetScene.generatedVideoUrl;
+        newScenes[idx] = {
+          ...targetScene,
+          generatedImageUrl: dataUrl,
+          isSceneCompleted: autoComplete ? true : targetScene.isSceneCompleted
+        };
+        updateEpisode(activeEpisode.id, { scenes: newScenes });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSceneVideoFile = (file: File, idx: number) => {
+    if (!file.type.startsWith('video/')) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (e.target?.result) {
+        const dataUrl = e.target.result as string;
+        const newScenes = [...activeEpisode.scenes];
+        const targetScene = newScenes[idx];
+        const autoComplete = !!targetScene.generatedImageUrl;
+        newScenes[idx] = {
+          ...targetScene,
+          generatedVideoUrl: dataUrl,
+          generatedVideoName: file.name,
+          isSceneCompleted: autoComplete ? true : targetScene.isSceneCompleted
+        };
         updateEpisode(activeEpisode.id, { scenes: newScenes });
       }
     };
@@ -272,6 +299,12 @@ VEO IMAGE-TO-VIDEO PROMPT: ${s.aiPrompts.imageToVideoPrompt || ''}
     newScenes[index] = updatedScene;
     updateEpisode(activeEpisode.id, { scenes: newScenes });
   };
+
+  const completedScenesCount = activeEpisode.scenes.filter(
+    s => s.isSceneCompleted || (s.generatedImageUrl && s.generatedVideoUrl)
+  ).length;
+  const totalScenesCount = activeEpisode.scenes.length;
+  const progressPercent = totalScenesCount > 0 ? Math.round((completedScenesCount / totalScenesCount) * 100) : 0;
 
   return (
     <div className="max-w-7xl mx-auto p-6 pb-20">
@@ -623,223 +656,260 @@ VEO IMAGE-TO-VIDEO PROMPT: ${s.aiPrompts.imageToVideoPrompt || ''}
 
       {!isGenerating && activeEpisode.scenes.length > 0 && (
         <div className="space-y-6">
-          {activeEpisode.scenes.map((scene, idx) => (
-            <div key={idx} className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg flex flex-col md:flex-row gap-6">
-              
-              {/* Scene Number / Visuals */}
-              <div className="w-full md:w-1/3 space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-amber-500 font-black text-sm">
-                      {scene.sceneNumber}
-                    </div>
-                    <span className="text-xs font-bold text-slate-500">{scene.timecode}</span>
-                  </div>
-                  <button
-                    onClick={() => handleRegenerateScene(idx)}
-                    disabled={regeneratingSceneIdx === idx}
-                    className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-amber-400 transition-colors disabled:opacity-50"
-                    title="Regenerate this specific scene with AI"
-                  >
-                    {regeneratingSceneIdx === idx ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-500" />
-                    ) : (
-                      <RefreshCw className="w-3.5 h-3.5 text-amber-500" />
-                    )}
-                    Regenerate Scene
-                  </button>
-                </div>
+          {/* Storyboard Progress Header */}
+          <div className="bg-slate-900 border border-slate-800 p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-black text-slate-100 flex items-center gap-2">
+                  Scene Completion Progress
+                </h4>
+                <p className="text-xs text-slate-400">
+                  {completedScenesCount} of {totalScenesCount} scenes complete ({progressPercent}%)
+                </p>
+              </div>
+            </div>
+            <div className="w-full sm:w-64 bg-slate-950 border border-slate-800 h-3 rounded-full overflow-hidden p-0.5">
+              <div 
+                className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
+                style={{ width: `${progressPercent}%` }} 
+              />
+            </div>
+          </div>
+
+          {activeEpisode.scenes.map((scene, idx) => {
+            const isBothUploaded = !!scene.generatedImageUrl && !!scene.generatedVideoUrl;
+            const isDone = scene.isSceneCompleted ?? isBothUploaded;
+
+            return (
+              <div key={idx} className={`bg-slate-900 border rounded-2xl p-6 shadow-lg flex flex-col md:flex-row gap-6 transition-all ${
+                isDone ? 'border-emerald-500/40 bg-slate-900/90 shadow-emerald-950/20' : 'border-slate-800'
+              }`}>
                 
-                <div className="space-y-1">
-                  <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase"><ImageIcon className="w-3.5 h-3.5" /> Visual Action</label>
-                  <textarea 
-                    value={scene.visualDirection} 
-                    onChange={e => updateScene(idx, { ...scene, visualDirection: e.target.value })}
-                    className="w-full bg-transparent border-none text-sm text-slate-300 focus:ring-0 resize-none h-16 p-0"
-                  />
-                </div>
-
-                {/* Visual Guide Image Container (Paste / Drop / Upload) */}
-                <div 
-                  onPaste={(e) => handlePasteOnScene(e, idx)}
-                  tabIndex={0}
-                  className="mt-2 outline-none rounded-xl"
-                >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-[10px] font-black text-amber-500 uppercase tracking-wider flex items-center gap-1">
-                      <ImageIcon className="w-3 h-3" /> Scene Visual Guide
-                    </label>
-                    <span className="text-[9px] text-slate-500 font-bold">Paste (Ctrl+V) / Drop</span>
-                  </div>
-
-                  {scene.generatedImageUrl ? (
-                    <div className="relative group rounded-xl overflow-hidden border border-slate-800 bg-slate-950 max-h-48 flex items-center justify-center">
-                      <img 
-                        src={scene.generatedImageUrl} 
-                        alt={`Scene ${scene.sceneNumber} Visual Guide`}
-                        className="w-full h-full object-cover max-h-48 rounded-xl"
-                      />
-                      <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                        <a 
-                          href={scene.generatedImageUrl} 
-                          download={`Scene_${scene.sceneNumber}.png`}
-                          className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1 shadow-lg"
-                          title="Download Image"
-                        >
-                          <Download className="w-3.5 h-3.5 text-amber-500" /> Save
-                        </a>
-                        <label className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold cursor-pointer flex items-center gap-1 shadow-lg">
-                          <Upload className="w-3.5 h-3.5 text-amber-500" /> Replace
-                          <input 
-                            type="file" 
-                            accept="image/*" 
-                            className="hidden" 
-                            onChange={(e) => e.target.files?.[0] && handleImageFile(e.target.files[0], idx)}
-                          />
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => updateScene(idx, { ...scene, generatedImageUrl: undefined })}
-                          className="p-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs font-bold flex items-center gap-1 shadow-lg"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
+                {/* Scene Visuals & Assets (Image + Video) */}
+                <div className="w-full md:w-1/3 space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full bg-slate-800 flex items-center justify-center text-amber-500 font-black text-xs">
+                        {scene.sceneNumber}
                       </div>
+                      <span className="text-xs font-bold text-slate-500">{scene.timecode}</span>
                     </div>
-                  ) : (
-                    <label className="border-2 border-dashed border-slate-800 hover:border-amber-500/50 bg-slate-950/40 hover:bg-slate-950/80 p-3.5 rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all group text-center">
-                      <Upload className="w-4 h-4 text-slate-600 group-hover:text-amber-500 mb-1 transition-colors" />
-                      <span className="text-xs font-bold text-slate-400 group-hover:text-slate-200 transition-colors">Paste or Upload Image</span>
-                      <span className="text-[9px] text-slate-500 mt-0.5">Click card & press Ctrl+V to paste</span>
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        className="hidden" 
-                        onChange={(e) => e.target.files?.[0] && handleImageFile(e.target.files[0], idx)}
-                      />
-                    </label>
-                  )}
-                </div>
-              </div>
 
-              {/* Scripts */}
-              <div className="w-full md:w-1/3 space-y-4 md:border-l border-slate-800 md:pl-6">
-                <div className="space-y-1">
-                  <label className="flex items-center gap-1.5 text-[10px] font-black text-emerald-500 uppercase tracking-wider bg-emerald-500/10 w-max px-2 py-0.5 rounded-full"><Type className="w-3 h-3" /> Voiceover</label>
-                  <textarea 
-                    value={scene.voiceoverScript} 
-                    onChange={e => updateScene(idx, { ...scene, voiceoverScript: e.target.value })}
-                    className="w-full bg-transparent border-none text-[15px] font-medium text-slate-100 focus:ring-0 resize-none h-24 p-0 leading-relaxed"
-                  />
-                </div>
-                <div className="space-y-1 pt-2 border-t border-slate-800/50">
-                  <label className="text-[10px] font-black text-blue-400 uppercase tracking-wider bg-blue-500/10 w-max px-2 py-0.5 rounded-full block mb-1">Caption / Text</label>
-                  <input 
-                    value={scene.onScreenText} 
-                    onChange={e => updateScene(idx, { ...scene, onScreenText: e.target.value })}
-                    className="w-full bg-transparent border-none text-sm font-bold text-blue-100 focus:ring-0 p-0"
-                  />
-                </div>
-              </div>
-
-              {/* AI Prompts */}
-              <div className="w-full md:w-1/3 space-y-4 md:border-l border-slate-800 md:pl-6">
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <label className="flex items-center gap-1.5 text-[10px] font-black text-amber-500 uppercase tracking-wider">
-                      <ImageIcon className="w-3 h-3" /> Step 1: Image Prompt (Midjourney/Flux)
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => handleCopyText(scene.aiPrompts.imagePrompt, `img-${idx}`)}
-                      className="flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-amber-400 transition-colors"
-                      title="Copy Image Prompt"
-                    >
-                      {copiedKey === `img-${idx}` ? (
-                        <>
-                          <Check className="w-3 h-3 text-emerald-400" />
-                          <span className="text-emerald-400">Copied!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3 h-3" /> Copy
-                        </>
-                      )}
-                    </button>
-                  </div>
-                  <textarea 
-                    value={scene.aiPrompts.imagePrompt} 
-                    onChange={e => updateScene(idx, { ...scene, aiPrompts: { ...scene.aiPrompts, imagePrompt: e.target.value } })}
-                    className="w-full bg-slate-950/50 rounded-lg border border-slate-800 text-[11px] text-slate-400 focus:ring-1 focus:ring-amber-500 focus:outline-none resize-none h-16 p-2 font-mono"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <label className="flex items-center gap-1.5 text-[10px] font-black text-amber-500 uppercase tracking-wider">
-                      <Video className="w-3 h-3" /> Text-to-Video Prompt (t2v)
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => handleCopyText(scene.aiPrompts.videoPrompt, `vid-${idx}`)}
-                      className="flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-amber-400 transition-colors"
-                      title="Copy Text-to-Video Prompt"
-                    >
-                      {copiedKey === `vid-${idx}` ? (
-                        <>
-                          <Check className="w-3 h-3 text-emerald-400" />
-                          <span className="text-emerald-400">Copied!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3 h-3" /> Copy
-                        </>
-                      )}
-                    </button>
-                  </div>
-                  <textarea 
-                    value={scene.aiPrompts.videoPrompt} 
-                    onChange={e => updateScene(idx, { ...scene, aiPrompts: { ...scene.aiPrompts, videoPrompt: e.target.value } })}
-                    className="w-full bg-slate-950/50 rounded-lg border border-slate-800 text-[11px] text-slate-400 focus:ring-1 focus:ring-amber-500 focus:outline-none resize-none h-14 p-2 font-mono"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <label className="flex items-center gap-1.5 text-[10px] font-black text-amber-500 uppercase tracking-wider">
-                        <Video className="w-3 h-3 text-amber-400" /> Step 2: Veo Image-to-Video Prompt
-                      </label>
-                      {scene.generatedImageUrl && (
-                        <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
-                          📷 Image Attached
-                        </span>
-                      )}
-                    </div>
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => handleGenerateI2vPrompt(idx)}
-                        disabled={generatingI2vIdx === idx}
-                        className="flex items-center gap-1 text-[10px] font-bold text-amber-400 hover:text-amber-300 transition-colors disabled:opacity-50"
-                        title={scene.generatedImageUrl ? "Analyze attached image and generate Google Veo prompt" : "Generate Google Veo Image-to-Video prompt"}
+                        onClick={() => {
+                          const nextDone = !isDone;
+                          updateScene(idx, { ...scene, isSceneCompleted: nextDone });
+                        }}
+                        className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-extrabold transition-all border ${
+                          isDone
+                            ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 shadow-sm shadow-emerald-500/10'
+                            : 'bg-slate-800 text-slate-400 hover:text-slate-200 border-slate-700'
+                        }`}
+                        title={isBothUploaded ? "Both Image & Video uploaded (Scene Complete)" : "Click to toggle scene completion"}
                       >
-                        {generatingI2vIdx === idx ? (
-                          <Loader2 className="w-3 h-3 animate-spin text-amber-400" />
-                        ) : (
-                          <Sparkles className="w-3 h-3 text-amber-400" />
-                        )}
-                        {scene.generatedImageUrl 
-                          ? (scene.aiPrompts.imageToVideoPrompt ? 'Re-analyze Image' : 'Analyze Image & Prompt Veo')
-                          : (scene.aiPrompts.imageToVideoPrompt ? 'Regenerate Veo' : 'Generate Veo')}
+                        <CheckCircle2 className={`w-3 h-3 ${isDone ? 'text-emerald-400' : 'text-slate-500'}`} />
+                        {isDone ? 'Complete' : 'Mark Complete'}
                       </button>
+
+                      <button
+                        onClick={() => handleRegenerateScene(idx)}
+                        disabled={regeneratingSceneIdx === idx}
+                        className="flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-amber-400 transition-colors disabled:opacity-50"
+                        title="Regenerate this scene with AI"
+                      >
+                        {regeneratingSceneIdx === idx ? (
+                          <Loader2 className="w-3 h-3 animate-spin text-amber-500" />
+                        ) : (
+                          <RefreshCw className="w-3 h-3 text-amber-500" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase"><ImageIcon className="w-3.5 h-3.5" /> Visual Action</label>
+                    <textarea 
+                      value={scene.visualDirection} 
+                      onChange={e => updateScene(idx, { ...scene, visualDirection: e.target.value })}
+                      className="w-full bg-transparent border-none text-sm text-slate-300 focus:ring-0 resize-none h-14 p-0"
+                    />
+                  </div>
+
+                  {/* 1. Scene Visual Guide Image */}
+                  <div 
+                    onPaste={(e) => handlePasteOnScene(e, idx)}
+                    tabIndex={0}
+                    className="outline-none rounded-xl"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[10px] font-black text-amber-500 uppercase tracking-wider flex items-center gap-1">
+                        <ImageIcon className="w-3 h-3" /> Scene Image Guide
+                      </label>
+                      <span className="text-[9px] text-slate-500 font-bold">Paste / Drop</span>
+                    </div>
+
+                    {scene.generatedImageUrl ? (
+                      <div className="relative group rounded-xl overflow-hidden border border-slate-800 bg-slate-950 max-h-36 flex items-center justify-center">
+                        <img 
+                          src={scene.generatedImageUrl} 
+                          alt={`Scene ${scene.sceneNumber} Visual Guide`}
+                          className="w-full h-full object-cover max-h-36 rounded-xl"
+                        />
+                        <div className="absolute inset-0 bg-black/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                          <a 
+                            href={scene.generatedImageUrl} 
+                            download={`Scene_${scene.sceneNumber}.png`}
+                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1 shadow-lg"
+                            title="Download Image"
+                          >
+                            <Download className="w-3.5 h-3.5 text-amber-500" /> Save
+                          </a>
+                          <label className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold cursor-pointer flex items-center gap-1 shadow-lg">
+                            <Upload className="w-3.5 h-3.5 text-amber-500" /> Replace
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              className="hidden" 
+                              onChange={(e) => e.target.files?.[0] && handleImageFile(e.target.files[0], idx)}
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              updateScene(idx, {
+                                ...scene,
+                                generatedImageUrl: undefined,
+                                isSceneCompleted: false
+                              });
+                            }}
+                            className="p-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs font-bold flex items-center gap-1 shadow-lg"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <label className="border-2 border-dashed border-slate-800 hover:border-amber-500/50 bg-slate-950/40 hover:bg-slate-950/80 p-2.5 rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all group text-center">
+                        <Upload className="w-4 h-4 text-slate-600 group-hover:text-amber-500 mb-1 transition-colors" />
+                        <span className="text-xs font-bold text-slate-400 group-hover:text-slate-200 transition-colors">Paste/Upload Image</span>
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          className="hidden" 
+                          onChange={(e) => e.target.files?.[0] && handleImageFile(e.target.files[0], idx)}
+                        />
+                      </label>
+                    )}
+                  </div>
+
+                  {/* 2. Scene Video Clip Asset */}
+                  <div className="outline-none rounded-xl">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-[10px] font-black text-amber-500 uppercase tracking-wider flex items-center gap-1">
+                        <Video className="w-3 h-3" /> Scene Video Clip
+                      </label>
+                      {scene.generatedVideoUrl && (
+                        <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                          Video Clip Loaded
+                        </span>
+                      )}
+                    </div>
+
+                    {scene.generatedVideoUrl ? (
+                      <div className="relative group rounded-xl overflow-hidden border border-slate-800 bg-black max-h-36 flex items-center justify-center">
+                        <video 
+                          src={scene.generatedVideoUrl} 
+                          controls
+                          className="w-full h-full object-contain max-h-36 rounded-xl"
+                        />
+                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 z-10 bg-black/80 p-1 rounded-lg border border-slate-700">
+                          <a 
+                            href={scene.generatedVideoUrl} 
+                            download={scene.generatedVideoName || `Scene_${scene.sceneNumber}_Clip.mp4`}
+                            className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold flex items-center gap-1"
+                            title="Save Video Clip"
+                          >
+                            <Download className="w-3 h-3 text-amber-500" />
+                          </a>
+                          <label className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-bold cursor-pointer flex items-center gap-1">
+                            <Upload className="w-3 h-3 text-amber-500" />
+                            <input 
+                              type="file" 
+                              accept="video/*" 
+                              className="hidden" 
+                              onChange={(e) => e.target.files?.[0] && handleSceneVideoFile(e.target.files[0], idx)}
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              updateScene(idx, {
+                                ...scene,
+                                generatedVideoUrl: undefined,
+                                generatedVideoName: undefined,
+                                isSceneCompleted: false
+                              });
+                            }}
+                            className="p-1 rounded bg-red-500/20 hover:bg-red-500/30 text-red-400 text-[10px] font-bold flex items-center gap-1"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <label className="border-2 border-dashed border-slate-800 hover:border-amber-500/50 bg-slate-950/40 hover:bg-slate-950/80 p-2.5 rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all group text-center">
+                        <Upload className="w-4 h-4 text-slate-600 group-hover:text-amber-500 mb-1 transition-colors" />
+                        <span className="text-xs font-bold text-slate-400 group-hover:text-slate-200 transition-colors">Upload Scene Video Clip</span>
+                        <input 
+                          type="file" 
+                          accept="video/*" 
+                          className="hidden" 
+                          onChange={(e) => e.target.files?.[0] && handleSceneVideoFile(e.target.files[0], idx)}
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div>
+
+                {/* Scripts */}
+                <div className="w-full md:w-1/3 space-y-4 md:border-l border-slate-800 md:pl-6">
+                  <div className="space-y-1">
+                    <label className="flex items-center gap-1.5 text-[10px] font-black text-emerald-500 uppercase tracking-wider bg-emerald-500/10 w-max px-2 py-0.5 rounded-full"><Type className="w-3 h-3" /> Voiceover</label>
+                    <textarea 
+                      value={scene.voiceoverScript} 
+                      onChange={e => updateScene(idx, { ...scene, voiceoverScript: e.target.value })}
+                      className="w-full bg-transparent border-none text-[15px] font-medium text-slate-100 focus:ring-0 resize-none h-24 p-0 leading-relaxed"
+                    />
+                  </div>
+                  <div className="space-y-1 pt-2 border-t border-slate-800/50">
+                    <label className="text-[10px] font-black text-blue-400 uppercase tracking-wider bg-blue-500/10 w-max px-2 py-0.5 rounded-full block mb-1">Caption / Text</label>
+                    <input 
+                      value={scene.onScreenText} 
+                      onChange={e => updateScene(idx, { ...scene, onScreenText: e.target.value })}
+                      className="w-full bg-transparent border-none text-sm font-bold text-blue-100 focus:ring-0 p-0"
+                    />
+                  </div>
+                </div>
+
+                {/* AI Prompts */}
+                <div className="w-full md:w-1/3 space-y-4 md:border-l border-slate-800 md:pl-6">
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="flex items-center gap-1.5 text-[10px] font-black text-amber-500 uppercase tracking-wider">
+                        <ImageIcon className="w-3 h-3" /> Step 1: Image Prompt (Midjourney/Flux)
+                      </label>
                       <button
                         type="button"
-                        onClick={() => handleCopyText(scene.aiPrompts.imageToVideoPrompt || '', `i2v-${idx}`)}
+                        onClick={() => handleCopyText(scene.aiPrompts.imagePrompt, `img-${idx}`)}
                         className="flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-amber-400 transition-colors"
-                        title="Copy Veo Image-to-Video Prompt"
+                        title="Copy Image Prompt"
                       >
-                        {copiedKey === `i2v-${idx}` ? (
+                        {copiedKey === `img-${idx}` ? (
                           <>
                             <Check className="w-3 h-3 text-emerald-400" />
                             <span className="text-emerald-400">Copied!</span>
@@ -851,19 +921,104 @@ VEO IMAGE-TO-VIDEO PROMPT: ${s.aiPrompts.imageToVideoPrompt || ''}
                         )}
                       </button>
                     </div>
+                    <textarea 
+                      value={scene.aiPrompts.imagePrompt} 
+                      onChange={e => updateScene(idx, { ...scene, aiPrompts: { ...scene.aiPrompts, imagePrompt: e.target.value } })}
+                      className="w-full bg-slate-950/50 rounded-lg border border-slate-800 text-[11px] text-slate-400 focus:ring-1 focus:ring-amber-500 focus:outline-none resize-none h-16 p-2 font-mono"
+                    />
                   </div>
-                  <textarea 
-                    value={scene.aiPrompts.imageToVideoPrompt || ''} 
-                    placeholder={scene.generatedImageUrl 
-                      ? "Click 'Analyze Image & Prompt Veo' to generate camera & motion instructions from your uploaded image..." 
-                      : "Step 1: Paste/upload scene image above. Step 2: Click 'Generate Veo' to analyze image & write Veo i2v prompt..."}
-                    onChange={e => updateScene(idx, { ...scene, aiPrompts: { ...scene.aiPrompts, imageToVideoPrompt: e.target.value } })}
-                    className="w-full bg-slate-950/50 rounded-lg border border-slate-800 text-[11px] text-slate-400 focus:ring-1 focus:ring-amber-500 focus:outline-none resize-none h-16 p-2 font-mono"
-                  />
+
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="flex items-center gap-1.5 text-[10px] font-black text-amber-500 uppercase tracking-wider">
+                        <Video className="w-3 h-3" /> Text-to-Video Prompt (t2v)
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyText(scene.aiPrompts.videoPrompt, `vid-${idx}`)}
+                        className="flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-amber-400 transition-colors"
+                        title="Copy Text-to-Video Prompt"
+                      >
+                        {copiedKey === `vid-${idx}` ? (
+                          <>
+                            <Check className="w-3 h-3 text-emerald-400" />
+                            <span className="text-emerald-400">Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" /> Copy
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    <textarea 
+                      value={scene.aiPrompts.videoPrompt} 
+                      onChange={e => updateScene(idx, { ...scene, aiPrompts: { ...scene.aiPrompts, videoPrompt: e.target.value } })}
+                      className="w-full bg-slate-950/50 rounded-lg border border-slate-800 text-[11px] text-slate-400 focus:ring-1 focus:ring-amber-500 focus:outline-none resize-none h-14 p-2 font-mono"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <label className="flex items-center gap-1.5 text-[10px] font-black text-amber-500 uppercase tracking-wider">
+                          <Video className="w-3 h-3 text-amber-400" /> Step 2: Veo Image-to-Video Prompt
+                        </label>
+                        {scene.generatedImageUrl && (
+                          <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                            📷 Image Attached
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleGenerateI2vPrompt(idx)}
+                          disabled={generatingI2vIdx === idx}
+                          className="flex items-center gap-1 text-[10px] font-bold text-amber-400 hover:text-amber-300 transition-colors disabled:opacity-50"
+                          title={scene.generatedImageUrl ? "Analyze attached image and generate Google Veo prompt" : "Generate Google Veo Image-to-Video prompt"}
+                        >
+                          {generatingI2vIdx === idx ? (
+                            <Loader2 className="w-3 h-3 animate-spin text-amber-400" />
+                          ) : (
+                            <Sparkles className="w-3 h-3 text-amber-400" />
+                          )}
+                          {scene.generatedImageUrl 
+                            ? (scene.aiPrompts.imageToVideoPrompt ? 'Re-analyze Image' : 'Analyze Image & Prompt Veo')
+                            : (scene.aiPrompts.imageToVideoPrompt ? 'Regenerate Veo' : 'Generate Veo')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyText(scene.aiPrompts.imageToVideoPrompt || '', `i2v-${idx}`)}
+                          className="flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-amber-400 transition-colors"
+                          title="Copy Veo Image-to-Video Prompt"
+                        >
+                          {copiedKey === `i2v-${idx}` ? (
+                            <>
+                              <Check className="w-3 h-3 text-emerald-400" />
+                              <span className="text-emerald-400">Copied!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3 h-3" /> Copy
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                    <textarea 
+                      value={scene.aiPrompts.imageToVideoPrompt || ''} 
+                      placeholder={scene.generatedImageUrl 
+                        ? "Click 'Analyze Image & Prompt Veo' to generate camera & motion instructions from your uploaded image..." 
+                        : "Step 1: Paste/upload scene image above. Step 2: Click 'Generate Veo' to analyze image & write Veo i2v prompt..."}
+                      onChange={e => updateScene(idx, { ...scene, aiPrompts: { ...scene.aiPrompts, imageToVideoPrompt: e.target.value } })}
+                      className="w-full bg-slate-950/50 rounded-lg border border-slate-800 text-[11px] text-slate-400 focus:ring-1 focus:ring-amber-500 focus:outline-none resize-none h-16 p-2 font-mono"
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
