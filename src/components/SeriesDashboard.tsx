@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useSeries } from '../context/SeriesContext';
 import { brainstormEpisodes, regenerateSingleConcept } from '../services/geminiService';
-import { Sparkles, Loader2, Save, BookOpen, Trash2, Film, RefreshCw, ChevronRight, Plus, Hash, CheckCircle2 } from 'lucide-react';
+import { Sparkles, Loader2, Save, BookOpen, Trash2, Film, RefreshCw, ChevronRight, Plus, Hash, CheckCircle2, Archive } from 'lucide-react';
 import { db } from '../db';
 import { useLiveQuery } from 'dexie-react-hooks';
 
@@ -28,6 +28,7 @@ export const SeriesDashboard: React.FC = () => {
   const { activeSeries, updateSeries, deleteSeries, createEpisode, updateEpisode, deleteEpisode, renumberSeriesEpisodes, setActiveEpisodeId, settings } = useSeries();
   const [isSaving, setIsSaving] = useState(false);
   const [isBrainstorming, setIsBrainstorming] = useState(false);
+  const [isExportingSeriesZip, setIsExportingSeriesZip] = useState(false);
   const [generateCount, setGenerateCount] = useState<number>(3);
   const [regeneratingEpId, setRegeneratingEpId] = useState<string | null>(null);
 
@@ -44,6 +45,120 @@ export const SeriesDashboard: React.FC = () => {
   const handlePresetChange = (presetValue: string) => {
     if (presetValue === 'custom') return;
     updateSeries(activeSeries.id, { globalArtStyle: presetValue });
+  };
+
+  const getExtensionFromDataUrl = (dataUrl: string, fallback: string): string => {
+    const parts = dataUrl.split(',');
+    if (!parts[0]) return fallback;
+    const mimeMatch = parts[0].match(/:(.*?);/);
+    if (!mimeMatch) return fallback;
+    const mime = mimeMatch[1];
+    if (mime.includes('jpeg') || mime.includes('jpg')) return 'jpg';
+    if (mime.includes('png')) return 'png';
+    if (mime.includes('webp')) return 'webp';
+    if (mime.includes('mp4')) return 'mp4';
+    if (mime.includes('webm')) return 'webm';
+    if (mime.includes('quicktime') || mime.includes('mov')) return 'mov';
+    return fallback;
+  };
+
+  const handleExportSeriesZip = async () => {
+    if (episodes.length === 0) {
+      alert('No episodes available to export for this series.');
+      return;
+    }
+
+    setIsExportingSeriesZip(true);
+    try {
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+
+      const cleanSeriesName = activeSeries.title.replace(/[^a-z0-9_\-\s]/gi, '').trim() || 'Series';
+
+      for (const ep of episodes) {
+        const cleanEpisodeTitle = ep.title.replace(/[^a-z0-9_\-\s]/gi, '').trim() || 'Episode';
+        const baseFolderPath = `${cleanSeriesName}/${cleanEpisodeTitle}`;
+
+        // 1. Scene Images
+        (ep.scenes || []).forEach((s) => {
+          if (s.generatedImageUrl) {
+            const ext = getExtensionFromDataUrl(s.generatedImageUrl, 'jpg');
+            const parts = s.generatedImageUrl.split(',');
+            if (parts[1]) {
+              zip.file(`${baseFolderPath}/Images/scene_${s.sceneNumber}.${ext}`, parts[1], { base64: true });
+            }
+          }
+        });
+
+        // 2. Scene Videos (Clips)
+        (ep.scenes || []).forEach((s) => {
+          if (s.generatedVideoUrl) {
+            const ext = getExtensionFromDataUrl(s.generatedVideoUrl, 'mp4');
+            const parts = s.generatedVideoUrl.split(',');
+            if (parts[1]) {
+              zip.file(`${baseFolderPath}/Videos/scene_${s.sceneNumber}.${ext}`, parts[1], { base64: true });
+            }
+          }
+        });
+
+        // 3. Finished Episode Video
+        if (ep.finishedVideoUrl) {
+          const ext = getExtensionFromDataUrl(ep.finishedVideoUrl, 'mp4');
+          const parts = ep.finishedVideoUrl.split(',');
+          if (parts[1]) {
+            zip.file(`${baseFolderPath}/Videos/final_episode.${ext}`, parts[1], { base64: true });
+          }
+        }
+
+        // 4. Storyboard Script & YouTube Metadata text file
+        const ytSection = ep.youtubeMetadata ? `
+========================================
+YOUTUBE PUBLISHING METADATA
+========================================
+TITLE:
+${ep.youtubeMetadata.youtubeTitle}
+
+DESCRIPTION:
+${ep.youtubeMetadata.description}
+
+TAGS:
+${(ep.youtubeMetadata.tags || []).join(', ')}
+
+========================================
+STORYBOARD SCRIPT & AI PROMPTS
+========================================
+` : '';
+
+        const scriptText = ytSection + (ep.scenes || []).map((s) => `
+SCENE ${s.sceneNumber} (${s.timecode})
+----------------------------------------
+VISUAL: ${s.visualDirection}
+TEXT ON SCREEN: ${s.onScreenText}
+VOICEOVER: ${s.voiceoverScript}
+
+--- AI PROMPTS ---
+IMAGE PROMPT: ${s.aiPrompts.imagePrompt}
+TEXT-TO-VIDEO PROMPT: ${s.aiPrompts.videoPrompt}
+VEO IMAGE-TO-VIDEO PROMPT: ${s.aiPrompts.imageToVideoPrompt || ''}
+`).join('\n\n');
+
+        zip.file(`${baseFolderPath}/storyboard_script.txt`, scriptText);
+      }
+
+      const content = await zip.generateAsync({ type: 'blob' });
+      const zipName = `${cleanSeriesName}_Full_Series_Assets.zip`.replace(/\s+/g, '_');
+      const url = URL.createObjectURL(content);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = zipName;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed to generate series ZIP archive:', err);
+      alert('Failed to export series ZIP archive.');
+    } finally {
+      setIsExportingSeriesZip(false);
+    }
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -244,12 +359,24 @@ export const SeriesDashboard: React.FC = () => {
 
       <div className="mt-12 space-y-6">
         <div className="flex flex-col gap-4 border-b border-slate-800/80 pb-5">
-          <div>
-            <h3 className="text-xl font-black text-slate-100 flex items-center gap-2.5">
-              <Film className="w-5 h-5 text-amber-500" />
-              Series Episodes ({episodes.length})
-            </h3>
-            <p className="text-xs text-slate-400 mt-1">Saved episode concepts and storyboards for this series.</p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-xl font-black text-slate-100 flex items-center gap-2.5">
+                <Film className="w-5 h-5 text-amber-500" />
+                Series Episodes ({episodes.length})
+              </h3>
+              <p className="text-xs text-slate-400 mt-1">Saved episode concepts and storyboards for this series.</p>
+            </div>
+
+            <button
+              onClick={handleExportSeriesZip}
+              disabled={isExportingSeriesZip || episodes.length === 0}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 font-bold text-xs transition-colors disabled:opacity-50"
+              title="Export all episodes and media assets into organized folder structure ZIP"
+            >
+              {isExportingSeriesZip ? <Loader2 className="w-4 h-4 animate-spin text-amber-400" /> : <Archive className="w-4 h-4 text-amber-400" />}
+              Export Entire Series (.zip)
+            </button>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">

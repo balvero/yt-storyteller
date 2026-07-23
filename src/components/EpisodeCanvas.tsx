@@ -35,10 +35,28 @@ export const EpisodeCanvas: React.FC = () => {
     reader.readAsDataURL(file);
   };
 
-  const handleExportImagesZip = async () => {
-    const scenesWithImages = activeEpisode.scenes.filter(s => !!s.generatedImageUrl);
-    if (scenesWithImages.length === 0) {
-      alert('No visual guide images have been added yet. Paste or upload images to your scenes first!');
+  const getExtensionFromDataUrl = (dataUrl: string, fallback: string): string => {
+    const parts = dataUrl.split(',');
+    if (!parts[0]) return fallback;
+    const mimeMatch = parts[0].match(/:(.*?);/);
+    if (!mimeMatch) return fallback;
+    const mime = mimeMatch[1];
+    if (mime.includes('jpeg') || mime.includes('jpg')) return 'jpg';
+    if (mime.includes('png')) return 'png';
+    if (mime.includes('webp')) return 'webp';
+    if (mime.includes('mp4')) return 'mp4';
+    if (mime.includes('webm')) return 'webm';
+    if (mime.includes('quicktime') || mime.includes('mov')) return 'mov';
+    return fallback;
+  };
+
+  const handleExportEpisodeZip = async () => {
+    const hasImages = activeEpisode.scenes.some(s => !!s.generatedImageUrl);
+    const hasSceneVideos = activeEpisode.scenes.some(s => !!s.generatedVideoUrl);
+    const hasFinishedVideo = !!activeEpisode.finishedVideoUrl;
+
+    if (!hasImages && !hasSceneVideos && !hasFinishedVideo && activeEpisode.scenes.length === 0) {
+      alert('No scenes or media assets available to export for this episode.');
       return;
     }
 
@@ -47,28 +65,87 @@ export const EpisodeCanvas: React.FC = () => {
       const JSZip = (await import('jszip')).default;
       const zip = new JSZip();
 
-      scenesWithImages.forEach((s) => {
-        if (s.generatedImageUrl) {
-          const parts = s.generatedImageUrl.split(',');
-          const mimeMatch = parts[0].match(/:(.*?);/);
-          const ext = mimeMatch ? mimeMatch[1].split('/')[1] || 'png' : 'png';
-          const base64Data = parts[1];
+      const cleanSeriesName = activeSeries.title.replace(/[^a-z0-9_\-\s]/gi, '').trim() || 'Series';
+      const cleanEpisodeTitle = activeEpisode.title.replace(/[^a-z0-9_\-\s]/gi, '').trim() || 'Episode';
 
-          zip.file(`Scene_${s.sceneNumber}.${ext}`, base64Data, { base64: true });
+      const baseFolderPath = `${cleanSeriesName}/${cleanEpisodeTitle}`;
+
+      // 1. Images: Series Name > Episode Title > Images > scene_1.jpg
+      activeEpisode.scenes.forEach((s) => {
+        if (s.generatedImageUrl) {
+          const ext = getExtensionFromDataUrl(s.generatedImageUrl, 'jpg');
+          const parts = s.generatedImageUrl.split(',');
+          if (parts[1]) {
+            zip.file(`${baseFolderPath}/Images/scene_${s.sceneNumber}.${ext}`, parts[1], { base64: true });
+          }
         }
       });
 
+      // 2. Videos (Scene Clips): Series Name > Episode Title > Videos > scene_1.mp4
+      activeEpisode.scenes.forEach((s) => {
+        if (s.generatedVideoUrl) {
+          const ext = getExtensionFromDataUrl(s.generatedVideoUrl, 'mp4');
+          const parts = s.generatedVideoUrl.split(',');
+          if (parts[1]) {
+            zip.file(`${baseFolderPath}/Videos/scene_${s.sceneNumber}.${ext}`, parts[1], { base64: true });
+          }
+        }
+      });
+
+      // 3. Finished Video: Series Name > Episode Title > Videos > final_episode.mp4
+      if (activeEpisode.finishedVideoUrl) {
+        const ext = getExtensionFromDataUrl(activeEpisode.finishedVideoUrl, 'mp4');
+        const parts = activeEpisode.finishedVideoUrl.split(',');
+        if (parts[1]) {
+          zip.file(`${baseFolderPath}/Videos/final_episode.${ext}`, parts[1], { base64: true });
+        }
+      }
+
+      // 4. Storyboard Script & Metadata Text File
+      const ytSection = activeEpisode.youtubeMetadata ? `
+========================================
+YOUTUBE PUBLISHING METADATA
+========================================
+TITLE:
+${activeEpisode.youtubeMetadata.youtubeTitle}
+
+DESCRIPTION:
+${activeEpisode.youtubeMetadata.description}
+
+TAGS:
+${(activeEpisode.youtubeMetadata.tags || []).join(', ')}
+
+========================================
+STORYBOARD SCRIPT & AI PROMPTS
+========================================
+` : '';
+
+      const scriptText = ytSection + activeEpisode.scenes.map((s) => `
+SCENE ${s.sceneNumber} (${s.timecode})
+----------------------------------------
+VISUAL: ${s.visualDirection}
+TEXT ON SCREEN: ${s.onScreenText}
+VOICEOVER: ${s.voiceoverScript}
+
+--- AI PROMPTS ---
+IMAGE PROMPT: ${s.aiPrompts.imagePrompt}
+TEXT-TO-VIDEO PROMPT: ${s.aiPrompts.videoPrompt}
+VEO IMAGE-TO-VIDEO PROMPT: ${s.aiPrompts.imageToVideoPrompt || ''}
+`).join('\n\n');
+
+      zip.file(`${baseFolderPath}/storyboard_script.txt`, scriptText);
+
       const content = await zip.generateAsync({ type: 'blob' });
-      const cleanTitle = activeEpisode.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      const zipName = `${cleanSeriesName}_${cleanEpisodeTitle}_Assets.zip`.replace(/\s+/g, '_');
       const url = URL.createObjectURL(content);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${cleanTitle}_images.zip`;
+      a.download = zipName;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      console.error('Failed to generate ZIP archive:', err);
-      alert('Failed to export ZIP archive.');
+      console.error('Failed to generate assets ZIP archive:', err);
+      alert('Failed to export assets ZIP archive.');
     } finally {
       setIsExportingZip(false);
     }
@@ -349,13 +426,13 @@ VEO IMAGE-TO-VIDEO PROMPT: ${s.aiPrompts.imageToVideoPrompt || ''}
             <Download className="w-4 h-4 text-amber-500" /> Export Script
           </button>
           <button
-            onClick={handleExportImagesZip}
-            disabled={isExportingZip || !activeEpisode.scenes.some(s => !!s.generatedImageUrl)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm transition-colors disabled:opacity-50"
-            title="Export all scene visual guide images into a ZIP file"
+            onClick={handleExportEpisodeZip}
+            disabled={isExportingZip}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 font-bold text-sm transition-colors disabled:opacity-50"
+            title="Export full episode media assets & script into organized folder hierarchy ZIP"
           >
-            {isExportingZip ? <Loader2 className="w-4 h-4 animate-spin text-amber-500" /> : <Archive className="w-4 h-4 text-amber-500" />}
-            Export Images (.zip)
+            {isExportingZip ? <Loader2 className="w-4 h-4 animate-spin text-amber-400" /> : <Archive className="w-4 h-4 text-amber-400" />}
+            Export Episode Assets (.zip)
           </button>
           <button
             onClick={handleGenerate}
