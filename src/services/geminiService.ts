@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import type { StoryboardScene } from '../types';
+import type { StoryboardScene, YouTubeMetadata } from '../types';
 
 const FACTUAL_GUARDRAIL = `
 CRITICAL SYSTEM INSTRUCTION: ZERO-HALLUCINATION FACTUAL GUARDRAIL
@@ -356,4 +356,71 @@ Return ONLY the single prompt sentence string adhering strictly to this exact te
   });
 
   return (response.response.text() || '').trim();
+}
+
+export async function generateYouTubeMetadata(
+  seriesTitle: string,
+  seriesTopic: string,
+  episodeTitle: string,
+  episodeConcept: string,
+  scenes: StoryboardScene[],
+  apiKey: string,
+  modelName: string = 'gemini-3.6-flash'
+): Promise<YouTubeMetadata> {
+  if (!apiKey) throw new Error('API key is missing.');
+
+  const ai = new GoogleGenerativeAI(apiKey);
+
+  const sceneSummary = scenes.length > 0
+    ? scenes.map(s => `Scene ${s.sceneNumber}: ${s.visualDirection} (Voiceover: "${s.voiceoverScript}")`).join('\n')
+    : 'No scene details generated yet.';
+
+  const prompt = `
+${FACTUAL_GUARDRAIL}
+
+You are an expert YouTube Shorts SEO specialist and viral growth strategist.
+
+Series Title: "${seriesTitle}"
+Series Topic: "${seriesTopic}"
+Episode Title: "${episodeTitle}"
+Episode Concept: "${episodeConcept}"
+
+Scenes Context:
+${sceneSummary}
+
+INSTRUCTIONS:
+Generate high-converting YouTube Shorts metadata:
+1. youtubeTitle: A viral, high-CTR title (under 70 characters) optimized for YouTube Shorts algorithm with 2-3 trending hashtags (e.g. #Shorts #History #Documentary). Must create a strong curiosity gap.
+2. description: An engaging 3-paragraph YouTube description:
+   - Paragraph 1: High-hook summary of the story designed to drive comments/views.
+   - Paragraph 2: Key story highlights or questions ("Did you know...?").
+   - Paragraph 3: Relevant hashtags & call to subscribe.
+3. tags: An array of 12-20 high-traffic search tags & long-tail keyword phrases (e.g. ["ancient history", "historical facts", "shorts", "documentary", ...]).
+
+Return ONLY valid JSON matching this exact structure:
+{
+  "youtubeTitle": "...",
+  "description": "...",
+  "tags": ["tag1", "tag2", "tag3"]
+}
+`;
+
+  const model = ai.getGenerativeModel({ model: modelName });
+  const response = await model.generateContent({
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    generationConfig: { responseMimeType: 'application/json', temperature: 0.7 }
+  });
+
+  const text = response.response.text() || '{}';
+  try {
+    const parsed = JSON.parse(text);
+    return {
+      youtubeTitle: parsed.youtubeTitle || episodeTitle,
+      description: parsed.description || episodeConcept,
+      tags: Array.isArray(parsed.tags) ? parsed.tags : []
+    };
+  } catch (err) {
+    console.error('Failed to parse YouTube metadata JSON:', text);
+    throw new Error('Failed to generate YouTube metadata. Try again.');
+  }
 }

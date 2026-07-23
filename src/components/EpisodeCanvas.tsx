@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useSeries } from '../context/SeriesContext';
-import { generateEpisodeStoryboard, regenerateSingleScene, generateImageToVideoPrompt } from '../services/geminiService';
-import { Sparkles, Loader2, ChevronLeft, Download, Film, Type, Image as ImageIcon, Video, Volume2, Check, RefreshCw, Copy, Upload, X, Archive } from 'lucide-react';
+import { generateEpisodeStoryboard, regenerateSingleScene, generateImageToVideoPrompt, generateYouTubeMetadata } from '../services/geminiService';
+import { Sparkles, Loader2, ChevronLeft, Download, Film, Type, Image as ImageIcon, Video, Volume2, Check, RefreshCw, Copy, Upload, X, Archive, Youtube, Tag, FileText } from 'lucide-react';
 import type { StoryboardScene } from '../types';
 
 export const EpisodeCanvas: React.FC = () => {
   const { activeSeries, activeEpisode, setActiveEpisodeId, updateEpisode, settings } = useSeries();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingMetadata, setIsGeneratingMetadata] = useState(false);
   const [copiedVoiceover, setCopiedVoiceover] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [regeneratingSceneIdx, setRegeneratingSceneIdx] = useState<number | null>(null);
@@ -143,6 +144,30 @@ export const EpisodeCanvas: React.FC = () => {
     }
   };
 
+  const handleGenerateMetadata = async () => {
+    if (!settings.geminiApiKey) {
+      alert('Please enter your Gemini API Key in Settings first.');
+      return;
+    }
+    setIsGeneratingMetadata(true);
+    try {
+      const metadata = await generateYouTubeMetadata(
+        activeSeries.title,
+        activeSeries.topicDescription,
+        activeEpisode.title,
+        activeEpisode.conceptOverview,
+        activeEpisode.scenes,
+        settings.geminiApiKey,
+        settings.modelName
+      );
+      updateEpisode(activeEpisode.id, { youtubeMetadata: metadata });
+    } catch (err: any) {
+      alert(err.message || 'Failed to generate YouTube metadata.');
+    } finally {
+      setIsGeneratingMetadata(false);
+    }
+  };
+
   const handleCopyVoiceovers = () => {
     const fullVoiceover = activeEpisode.scenes
       .map((s) => s.voiceoverScript.trim())
@@ -183,7 +208,25 @@ export const EpisodeCanvas: React.FC = () => {
   };
 
   const handleExport = () => {
-    const text = activeEpisode.scenes.map((s) => `
+    const ytSection = activeEpisode.youtubeMetadata ? `
+========================================
+YOUTUBE PUBLISHING METADATA
+========================================
+TITLE:
+${activeEpisode.youtubeMetadata.youtubeTitle}
+
+DESCRIPTION:
+${activeEpisode.youtubeMetadata.description}
+
+TAGS:
+${(activeEpisode.youtubeMetadata.tags || []).join(', ')}
+
+========================================
+STORYBOARD SCRIPT & AI PROMPTS
+========================================
+` : '';
+
+    const text = ytSection + activeEpisode.scenes.map((s) => `
 SCENE ${s.sceneNumber} (${s.timecode})
 ----------------------------------------
 VISUAL: ${s.visualDirection}
@@ -220,6 +263,7 @@ VEO IMAGE-TO-VIDEO PROMPT: ${s.aiPrompts.imageToVideoPrompt || ''}
         <ChevronLeft className="w-4 h-4" /> Back to Series Dashboard
       </button>
 
+      {/* Episode Header */}
       <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl mb-8 flex flex-col gap-6">
         <div>
           <span className="text-amber-500 font-bold text-xs uppercase tracking-widest">{activeSeries.title}</span>
@@ -270,6 +314,162 @@ VEO IMAGE-TO-VIDEO PROMPT: ${s.aiPrompts.imageToVideoPrompt || ''}
             {activeEpisode.scenes.length > 0 ? 'Regenerate Storyboard' : 'Generate Storyboard'}
           </button>
         </div>
+      </div>
+
+      {/* YouTube Shorts Publishing & SEO Metadata Section */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 mb-8 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500">
+              <Youtube className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-black text-slate-100 flex items-center gap-2">
+                YouTube Publishing & SEO Metadata
+              </h3>
+              <p className="text-xs text-slate-400">Viral title, search-optimized description, and tags for YouTube Shorts</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleGenerateMetadata}
+            disabled={isGeneratingMetadata}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 font-bold text-xs transition-all disabled:opacity-50"
+          >
+            {isGeneratingMetadata ? <Loader2 className="w-3.5 h-3.5 animate-spin text-red-400" /> : <Sparkles className="w-3.5 h-3.5" />}
+            {activeEpisode.youtubeMetadata ? 'Regenerate Metadata' : 'Generate YouTube Metadata'}
+          </button>
+        </div>
+
+        {activeEpisode.youtubeMetadata ? (
+          <div className="mt-6 space-y-6">
+            {/* Title */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-extrabold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <Youtube className="w-3.5 h-3.5 text-red-400" /> Shorts Title
+                </label>
+                <button
+                  type="button"
+                  onClick={() => handleCopyText(activeEpisode.youtubeMetadata?.youtubeTitle || '', 'yt-title')}
+                  className="flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-amber-400 transition-colors"
+                >
+                  {copiedKey === 'yt-title' ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="text-emerald-400">Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" /> Copy Title
+                    </>
+                  )}
+                </button>
+              </div>
+              <input
+                type="text"
+                value={activeEpisode.youtubeMetadata.youtubeTitle}
+                onChange={(e) => {
+                  const updated = { ...activeEpisode.youtubeMetadata!, youtubeTitle: e.target.value };
+                  updateEpisode(activeEpisode.id, { youtubeMetadata: updated });
+                }}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm font-bold text-slate-100 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                placeholder="Viral YouTube Shorts Title with hashtags..."
+              />
+            </div>
+
+            {/* Description */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-extrabold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5 text-amber-500" /> Video Description
+                </label>
+                <button
+                  type="button"
+                  onClick={() => handleCopyText(activeEpisode.youtubeMetadata?.description || '', 'yt-desc')}
+                  className="flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-amber-400 transition-colors"
+                >
+                  {copiedKey === 'yt-desc' ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="text-emerald-400">Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" /> Copy Description
+                    </>
+                  )}
+                </button>
+              </div>
+              <textarea
+                rows={5}
+                value={activeEpisode.youtubeMetadata.description}
+                onChange={(e) => {
+                  const updated = { ...activeEpisode.youtubeMetadata!, description: e.target.value };
+                  updateEpisode(activeEpisode.id, { youtubeMetadata: updated });
+                }}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-500 leading-relaxed font-sans"
+                placeholder="SEO description, hook, story details, call to action, and hashtags..."
+              />
+            </div>
+
+            {/* Tags */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-extrabold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                  <Tag className="w-3.5 h-3.5 text-emerald-400" /> SEO Tags
+                </label>
+                <button
+                  type="button"
+                  onClick={() => handleCopyText((activeEpisode.youtubeMetadata?.tags || []).join(', '), 'yt-tags')}
+                  className="flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-amber-400 transition-colors"
+                >
+                  {copiedKey === 'yt-tags' ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="text-emerald-400">Copied All Tags!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" /> Copy Tags (Comma-Separated)
+                    </>
+                  )}
+                </button>
+              </div>
+              <textarea
+                rows={2}
+                value={(activeEpisode.youtubeMetadata.tags || []).join(', ')}
+                onChange={(e) => {
+                  const newTags = e.target.value.split(',').map(t => t.trim()).filter(Boolean);
+                  const updated = { ...activeEpisode.youtubeMetadata!, tags: newTags };
+                  updateEpisode(activeEpisode.id, { youtubeMetadata: updated });
+                }}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-slate-400 focus:outline-none focus:ring-1 focus:ring-amber-500 font-mono"
+                placeholder="tag1, tag2, tag3..."
+              />
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {(activeEpisode.youtubeMetadata.tags || []).map((tag, tIdx) => (
+                  <span key={tIdx} className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-4 p-6 border border-dashed border-slate-800 rounded-xl text-center">
+            <p className="text-xs text-slate-500 mb-3">No YouTube publishing metadata generated yet for this episode.</p>
+            <button
+              type="button"
+              onClick={handleGenerateMetadata}
+              disabled={isGeneratingMetadata}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 font-bold text-xs transition-colors disabled:opacity-50"
+            >
+              {isGeneratingMetadata ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+              Generate YouTube Title, Description & Tags
+            </button>
+          </div>
+        )}
       </div>
 
       {activeEpisode.scenes.length === 0 && !isGenerating && (
@@ -538,5 +738,3 @@ VEO IMAGE-TO-VIDEO PROMPT: ${s.aiPrompts.imageToVideoPrompt || ''}
     </div>
   );
 };
-
-

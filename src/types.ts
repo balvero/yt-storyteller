@@ -14,6 +14,12 @@ export interface StoryboardScene {
   };
 }
 
+export interface YouTubeMetadata {
+  youtubeTitle: string;
+  description: string;
+  tags: string[];
+}
+
 export interface Episode {
   id: string;
   seriesId: string;
@@ -21,6 +27,7 @@ export interface Episode {
   conceptOverview: string;
   targetDurationSec: number;
   scenes: StoryboardScene[];
+  youtubeMetadata?: YouTubeMetadata;
   isCompleted?: boolean;
   completedAt?: string;
   createdAt: string;
