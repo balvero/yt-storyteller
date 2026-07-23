@@ -16,6 +16,25 @@ export const EpisodeCanvas: React.FC = () => {
 
   if (!activeSeries || !activeEpisode) return null;
 
+  const handleVideoUpload = (file: File) => {
+    if (!file.type.startsWith('video/')) {
+      alert('Please select a valid video file (.mp4, .mov, .webm).');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (e.target?.result) {
+        const dataUrl = e.target.result as string;
+        updateEpisode(activeEpisode.id, {
+          finishedVideoUrl: dataUrl,
+          finishedVideoName: file.name,
+          finishedVideoSize: file.size
+        });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleExportImagesZip = async () => {
     const scenesWithImages = activeEpisode.scenes.filter(s => !!s.generatedImageUrl);
     if (scenesWithImages.length === 0) {
@@ -314,6 +333,118 @@ VEO IMAGE-TO-VIDEO PROMPT: ${s.aiPrompts.imageToVideoPrompt || ''}
             {activeEpisode.scenes.length > 0 ? 'Regenerate Storyboard' : 'Generate Storyboard'}
           </button>
         </div>
+      </div>
+
+      {/* Finished Episode Video Container */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 mb-8 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
+              <Film className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-black text-slate-100 flex items-center gap-2">
+                Finished Episode Video Asset
+              </h3>
+              <p className="text-xs text-slate-400">Upload & store your final rendered video file for this episode</p>
+            </div>
+          </div>
+
+          {activeEpisode.finishedVideoUrl && (
+            <div className="flex items-center gap-2">
+              <a
+                href={activeEpisode.finishedVideoUrl}
+                download={activeEpisode.finishedVideoName || `${activeEpisode.title.replace(/\s+/g, '_')}_Final.mp4`}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs transition-colors"
+                title="Download finished video"
+              >
+                <Download className="w-3.5 h-3.5 text-amber-500" /> Save Video
+              </a>
+              <label className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs cursor-pointer transition-colors">
+                <Upload className="w-3.5 h-3.5 text-amber-500" /> Replace Video
+                <input
+                  type="file"
+                  accept="video/*"
+                  className="hidden"
+                  onChange={(e) => e.target.files?.[0] && handleVideoUpload(e.target.files[0])}
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm('Delete the finished video file for this episode?')) {
+                    updateEpisode(activeEpisode.id, {
+                      finishedVideoUrl: undefined,
+                      finishedVideoName: undefined,
+                      finishedVideoSize: undefined
+                    });
+                  }
+                }}
+                className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors"
+                title="Remove video"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {activeEpisode.finishedVideoUrl ? (
+          <div className="mt-6 flex flex-col md:flex-row gap-6 items-center">
+            {/* Video Player */}
+            <div className="w-full md:w-1/2 rounded-xl overflow-hidden border border-slate-800 bg-black shadow-2xl flex items-center justify-center max-h-96">
+              <video
+                src={activeEpisode.finishedVideoUrl}
+                controls
+                className="w-full max-h-96 object-contain rounded-xl"
+              />
+            </div>
+
+            {/* Video Details */}
+            <div className="w-full md:w-1/2 space-y-4">
+              <div className="p-4 bg-slate-950/60 rounded-xl border border-slate-800 space-y-3">
+                <div>
+                  <span className="text-[10px] font-black text-amber-500 uppercase tracking-wider block mb-1">File Name</span>
+                  <p className="text-sm font-bold text-slate-200 break-all">{activeEpisode.finishedVideoName || 'Episode_Final.mp4'}</p>
+                </div>
+
+                {activeEpisode.finishedVideoSize && (
+                  <div>
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block mb-1">File Size</span>
+                    <p className="text-xs font-mono font-bold text-slate-400">
+                      {(activeEpisode.finishedVideoSize / (1024 * 1024)).toFixed(2)} MB
+                    </p>
+                  </div>
+                )}
+
+                <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between">
+                  <span className="text-xs text-slate-400 font-bold">Asset Status</span>
+                  <span className="text-xs font-black text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20 flex items-center gap-1">
+                    <Check className="w-3.5 h-3.5" /> Video Ready for Upload
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-4">
+            <label className="border-2 border-dashed border-slate-800 hover:border-amber-500/50 bg-slate-950/40 hover:bg-slate-950/80 p-8 rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all group text-center">
+              <Upload className="w-8 h-8 text-slate-600 group-hover:text-amber-500 mb-3 transition-colors" />
+              <h4 className="text-sm font-bold text-slate-300 group-hover:text-slate-100 transition-colors">
+                Upload Finished Episode Video (.mp4, .mov, .webm)
+              </h4>
+              <p className="text-xs text-slate-500 mt-1 max-w-sm">
+                Store your final rendered video file right inside this episode for easy playback and organization.
+              </p>
+              <input
+                type="file"
+                accept="video/*"
+                className="hidden"
+                onChange={(e) => e.target.files?.[0] && handleVideoUpload(e.target.files[0])}
+              />
+            </label>
+          </div>
+        )}
       </div>
 
       {/* YouTube Shorts Publishing & SEO Metadata Section */}

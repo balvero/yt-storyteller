@@ -28,6 +28,9 @@ export interface Episode {
   targetDurationSec: number;
   scenes: StoryboardScene[];
   youtubeMetadata?: YouTubeMetadata;
+  finishedVideoUrl?: string;
+  finishedVideoName?: string;
+  finishedVideoSize?: number;
   isCompleted?: boolean;
   completedAt?: string;
   createdAt: string;

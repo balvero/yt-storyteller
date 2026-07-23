@@ -327,11 +327,18 @@ export const SeriesDashboard: React.FC = () => {
                       >
                         {ep.title}
                       </h4>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
-                        hasStoryboard ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-slate-800 text-slate-400'
-                      }`}>
-                        {hasStoryboard ? `${ep.scenes.length} Scenes` : 'Draft'}
-                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {ep.finishedVideoUrl && (
+                          <span className="text-[10px] font-extrabold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+                            🎬 Video Ready
+                          </span>
+                        )}
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          hasStoryboard ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-slate-800 text-slate-400'
+                        }`}>
+                          {hasStoryboard ? `${ep.scenes.length} Scenes` : 'Draft'}
+                        </span>
+                      </div>
                     </div>
 
                     <textarea
