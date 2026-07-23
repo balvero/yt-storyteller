@@ -102,6 +102,9 @@ export const EpisodeCanvas: React.FC = () => {
       }
 
       // 4. Storyboard Script & Metadata Text File
+      const effectivePlTitle = activeEpisode.youtubeMetadata?.playlistTitle || activeSeries.playlistTitle || '';
+      const effectivePlDesc = activeEpisode.youtubeMetadata?.playlistDescription || activeSeries.playlistDescription || '';
+
       const ytSection = activeEpisode.youtubeMetadata ? `
 ========================================
 YOUTUBE PUBLISHING & PLAYLIST METADATA
@@ -119,10 +122,10 @@ ${(activeEpisode.youtubeMetadata.tags || []).join(', ')}
 PLAYLIST SEO METADATA
 ----------------------------------------
 PLAYLIST TITLE:
-${activeEpisode.youtubeMetadata.playlistTitle || ''}
+${effectivePlTitle}
 
 PLAYLIST DESCRIPTION:
-${activeEpisode.youtubeMetadata.playlistDescription || ''}
+${effectivePlDesc}
 
 ========================================
 STORYBOARD SCRIPT & AI PROMPTS
@@ -292,7 +295,14 @@ VEO IMAGE-TO-VIDEO PROMPT: ${s.aiPrompts.imageToVideoPrompt || ''}
         settings.geminiApiKey,
         settings.modelName
       );
-      updateEpisode(activeEpisode.id, { youtubeMetadata: metadata });
+
+      const finalMetadata = {
+        ...metadata,
+        playlistTitle: metadata.playlistTitle || activeSeries.playlistTitle || `${activeSeries.title} | Full Series`,
+        playlistDescription: metadata.playlistDescription || activeSeries.playlistDescription || activeSeries.topicDescription
+      };
+
+      updateEpisode(activeEpisode.id, { youtubeMetadata: finalMetadata });
     } catch (err: any) {
       alert(err.message || 'Failed to generate YouTube metadata.');
     } finally {
@@ -340,6 +350,9 @@ VEO IMAGE-TO-VIDEO PROMPT: ${s.aiPrompts.imageToVideoPrompt || ''}
   };
 
   const handleExport = () => {
+    const effectivePlTitle = activeEpisode.youtubeMetadata?.playlistTitle || activeSeries.playlistTitle || '';
+    const effectivePlDesc = activeEpisode.youtubeMetadata?.playlistDescription || activeSeries.playlistDescription || '';
+
     const ytSection = activeEpisode.youtubeMetadata ? `
 ========================================
 YOUTUBE PUBLISHING & PLAYLIST METADATA
@@ -357,10 +370,10 @@ ${(activeEpisode.youtubeMetadata.tags || []).join(', ')}
 PLAYLIST SEO METADATA
 ----------------------------------------
 PLAYLIST TITLE:
-${activeEpisode.youtubeMetadata.playlistTitle || ''}
+${effectivePlTitle}
 
 PLAYLIST DESCRIPTION:
-${activeEpisode.youtubeMetadata.playlistDescription || ''}
+${effectivePlDesc}
 
 ========================================
 STORYBOARD SCRIPT & AI PROMPTS
@@ -400,6 +413,9 @@ VEO IMAGE-TO-VIDEO PROMPT: ${s.aiPrompts.imageToVideoPrompt || ''}
   ).length;
   const totalScenesCount = activeEpisode.scenes.length;
   const progressPercent = totalScenesCount > 0 ? Math.round((completedScenesCount / totalScenesCount) * 100) : 0;
+
+  const currentPlTitle = activeEpisode.youtubeMetadata?.playlistTitle || activeSeries.playlistTitle || '';
+  const currentPlDesc = activeEpisode.youtubeMetadata?.playlistDescription || activeSeries.playlistDescription || '';
 
   return (
     <div className="max-w-7xl mx-auto p-6 pb-20">
@@ -717,11 +733,32 @@ VEO IMAGE-TO-VIDEO PROMPT: ${s.aiPrompts.imageToVideoPrompt || ''}
 
             {/* Playlist Title & SEO Description */}
             <div className="pt-4 border-t border-slate-800/80 space-y-4">
-              <div className="flex items-center gap-2">
-                <Film className="w-4 h-4 text-purple-400" />
-                <h4 className="text-xs font-black text-slate-200 uppercase tracking-wider">
-                  YouTube Playlist Metadata (Series / Season Playlist)
-                </h4>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Film className="w-4 h-4 text-purple-400" />
+                  <h4 className="text-xs font-black text-slate-200 uppercase tracking-wider">
+                    YouTube Playlist Metadata (Series / Season Playlist)
+                  </h4>
+                </div>
+
+                {(activeSeries.playlistTitle || activeSeries.playlistDescription) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const updated = {
+                        ...activeEpisode.youtubeMetadata!,
+                        playlistTitle: activeSeries.playlistTitle || activeEpisode.youtubeMetadata?.playlistTitle || '',
+                        playlistDescription: activeSeries.playlistDescription || activeEpisode.youtubeMetadata?.playlistDescription || ''
+                      };
+                      updateEpisode(activeEpisode.id, { youtubeMetadata: updated });
+                      alert('Synced Playlist Title & Description from Series Profile!');
+                    }}
+                    className="flex items-center gap-1.5 text-xs font-bold text-amber-400 hover:text-amber-300 transition-colors"
+                    title="Copy Series Playlist metadata to this episode"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 text-amber-500" /> Sync from Series Profile
+                  </button>
+                )}
               </div>
 
               {/* Playlist Title */}
@@ -732,7 +769,7 @@ VEO IMAGE-TO-VIDEO PROMPT: ${s.aiPrompts.imageToVideoPrompt || ''}
                   </label>
                   <button
                     type="button"
-                    onClick={() => handleCopyText(activeEpisode.youtubeMetadata?.playlistTitle || '', 'yt-pl-title')}
+                    onClick={() => handleCopyText(currentPlTitle, 'yt-pl-title')}
                     className="flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-amber-400 transition-colors"
                   >
                     {copiedKey === 'yt-pl-title' ? (
@@ -749,7 +786,7 @@ VEO IMAGE-TO-VIDEO PROMPT: ${s.aiPrompts.imageToVideoPrompt || ''}
                 </div>
                 <input
                   type="text"
-                  value={activeEpisode.youtubeMetadata.playlistTitle || ''}
+                  value={currentPlTitle}
                   onChange={(e) => {
                     const updated = { ...activeEpisode.youtubeMetadata!, playlistTitle: e.target.value };
                     updateEpisode(activeEpisode.id, { youtubeMetadata: updated });
@@ -767,7 +804,7 @@ VEO IMAGE-TO-VIDEO PROMPT: ${s.aiPrompts.imageToVideoPrompt || ''}
                   </label>
                   <button
                     type="button"
-                    onClick={() => handleCopyText(activeEpisode.youtubeMetadata?.playlistDescription || '', 'yt-pl-desc')}
+                    onClick={() => handleCopyText(currentPlDesc, 'yt-pl-desc')}
                     className="flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-amber-400 transition-colors"
                   >
                     {copiedKey === 'yt-pl-desc' ? (
@@ -784,7 +821,7 @@ VEO IMAGE-TO-VIDEO PROMPT: ${s.aiPrompts.imageToVideoPrompt || ''}
                 </div>
                 <textarea
                   rows={4}
-                  value={activeEpisode.youtubeMetadata.playlistDescription || ''}
+                  value={currentPlDesc}
                   onChange={(e) => {
                     const updated = { ...activeEpisode.youtubeMetadata!, playlistDescription: e.target.value };
                     updateEpisode(activeEpisode.id, { youtubeMetadata: updated });
