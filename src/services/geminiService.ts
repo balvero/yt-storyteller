@@ -111,7 +111,12 @@ INSTRUCTIONS:
 1. Break down the episode into 4 to 6 scenes. Total video duration should be around 30-60 seconds.
 2. The Hook (Scene 1) must instantly grab the audience's attention with a compelling visual and opening line.
 3. ${languageInstruction} The voiceover must be historically/factually accurate and gripping.
-4. Generate AI Image and Video prompts for each scene. Every image prompt MUST begin with the Global Art Style and end with "--ar ${aspectRatio}" (e.g. "${globalArtStyle}, [scene detail] --ar ${aspectRatio}") to enforce visual consistency and frame aspect ratio across Midjourney, Flux, Runway, and Kling.
+4. STRICT SYNCHRONIZATION DIRECTIVE:
+   Every prompt in \`aiPrompts\` MUST be 100% synchronized with the scene's \`visualDirection\` and \`voiceoverScript\`.
+   - \`imagePrompt\`: Establishes the key visual scene and focal subject. MUST begin with "${globalArtStyle}" and end with "--ar ${aspectRatio}".
+   - \`videoPrompt\`: Describes scene motion and camera direction from scratch.
+   - \`imageToVideoPrompt\`: MUST pick up the EXACT same key subject and details defined in \`imagePrompt\` and follow this exact template:
+     "Starting from the Merged Reference Anchor frame (focus on [subject from imagePrompt]), [camera motion and detail, e.g. a subtle, smooth zoom-in on / slow pan across [details]], emphasizing [attributes/mood]. Maintain 100% visual lock to the anchor frame setting."
 
 Return ONLY valid JSON matching this exact structure:
 [
@@ -122,8 +127,9 @@ Return ONLY valid JSON matching this exact structure:
     "onScreenText": "Bold caption overlay...",
     "voiceoverScript": "The historically accurate narrator script...",
     "aiPrompts": {
-      "videoPrompt": "Prompt for Runway Gen-3/Kling describing camera movement...",
-      "imagePrompt": "${globalArtStyle}, [specific scene details] --ar ${aspectRatio}",
+      "videoPrompt": "Prompt for Runway Gen-3/Kling text-to-video describing scene motion...",
+      "imagePrompt": "${globalArtStyle}, [specific scene details matching visual direction] --ar ${aspectRatio}",
+      "imageToVideoPrompt": "Starting from the Merged Reference Anchor frame (focus on [main subject from imagePrompt]), a subtle, smooth zoom-in on [detail/texture], emphasizing [key quality]. Maintain 100% visual lock to the anchor frame setting.",
       "referenceInstruction": "${srefInstruction}",
       "aspectRatio": "${aspectRatio}"
     }
@@ -237,6 +243,8 @@ INSTRUCTIONS:
 1. Provide a brand new, dramatic, and historically accurate visual direction, voiceover script, and on-screen text for Scene ${sceneNumber}.
 2. ${languageInstruction}
 3. The image prompt MUST start with "${globalArtStyle}" and end with "--ar ${aspectRatio}".
+4. STRICT SYNCHRONIZATION: The \`imageToVideoPrompt\` MUST pick up the EXACT same primary subject described in \`imagePrompt\` and follow this formula:
+   "Starting from the Merged Reference Anchor frame (focus on [main subject from imagePrompt]), [camera motion and detail, e.g. a subtle, smooth zoom-in on / slow tracking pan across [details]], emphasizing [attributes/mood]. Maintain 100% visual lock to the anchor frame setting."
 
 Return ONLY valid JSON matching:
 {
@@ -248,6 +256,7 @@ Return ONLY valid JSON matching:
   "aiPrompts": {
     "videoPrompt": "...",
     "imagePrompt": "${globalArtStyle}, ... --ar ${aspectRatio}",
+    "imageToVideoPrompt": "Starting from the Merged Reference Anchor frame (focus on ...), ... Maintain 100% visual lock to the anchor frame setting.",
     "aspectRatio": "${aspectRatio}"
   }
 }
@@ -280,4 +289,71 @@ Return ONLY valid JSON matching:
     console.error('Failed to parse single scene JSON:', text);
     throw new Error('Failed to regenerate scene. Try again.');
   }
+}
+
+export async function generateImageToVideoPrompt(
+  visualDirection: string,
+  voiceoverScript: string,
+  imagePrompt: string,
+  generatedImageUrl: string | undefined,
+  apiKey: string,
+  modelName: string = 'gemini-3.6-flash'
+): Promise<string> {
+  if (!apiKey) throw new Error('API key is missing.');
+
+  const ai = new GoogleGenerativeAI(apiKey);
+  const model = ai.getGenerativeModel({ model: modelName });
+
+  const promptText = `
+You are an expert AI prompt engineer specializing in Google Veo / Veo 2 Image-to-Video model prompts.
+
+Scene Visual Direction: "${visualDirection}"
+Voiceover Script: "${voiceoverScript}"
+Image Prompt / Keyframe Description: "${imagePrompt}"
+
+${generatedImageUrl ? 'Analyze the attached keyframe image visually.' : 'Based on the scene visual direction and description:'}
+
+STRICT SYNCHRONIZATION REQUIREMENT:
+The focus subject in the Image-to-Video prompt MUST match the exact key subject in "Image Prompt / Keyframe Description".
+
+MANDATORY PROMPT PATTERN:
+You MUST format your output Image-to-Video prompt using this exact structure and phrasing style:
+
+"Starting from the Merged Reference Anchor frame (focus on [main subject/object described in Image Prompt]), [camera motion and detail, e.g. a subtle, smooth zoom-in on / slow pan across / gentle tilt towards] [specific details, textures, or character motion], emphasizing [key qualities, atmosphere, or lighting]. Maintain 100% visual lock to the anchor frame setting."
+
+EXEMPLAR TO FOLLOW STRICTLY:
+"Starting from the Merged Reference Anchor frame (focus on the empty vase), a subtle, smooth zoom-in on the vase's matte texture, emphasizing its clean lines and simple elegance. Maintain 100% visual lock to the anchor frame setting."
+
+Return ONLY the single prompt sentence string adhering strictly to this exact template (do NOT wrap in JSON or quotes).
+`;
+
+  const parts: any[] = [];
+
+  if (generatedImageUrl && generatedImageUrl.startsWith('data:')) {
+    const commaIdx = generatedImageUrl.indexOf(',');
+    if (commaIdx !== -1) {
+      const header = generatedImageUrl.slice(0, commaIdx);
+      const base64Data = generatedImageUrl.slice(commaIdx + 1);
+      const mimeMatch = header.match(/:(.*?);/);
+      const mimeType = mimeMatch ? mimeMatch[1] : 'image/png';
+
+      if (base64Data) {
+        parts.push({
+          inlineData: {
+            data: base64Data,
+            mimeType: mimeType
+          }
+        });
+      }
+    }
+  }
+
+  parts.push({ text: promptText });
+
+  const response = await model.generateContent({
+    contents: [{ role: 'user', parts: parts }],
+    generationConfig: { temperature: 0.6 }
+  });
+
+  return (response.response.text() || '').trim();
 }

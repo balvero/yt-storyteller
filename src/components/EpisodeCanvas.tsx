@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useSeries } from '../context/SeriesContext';
-import { generateEpisodeStoryboard, regenerateSingleScene } from '../services/geminiService';
+import { generateEpisodeStoryboard, regenerateSingleScene, generateImageToVideoPrompt } from '../services/geminiService';
 import { Sparkles, Loader2, ChevronLeft, Download, Film, Type, Image as ImageIcon, Video, Volume2, Check, RefreshCw, Copy, Upload, X, Archive } from 'lucide-react';
 import type { StoryboardScene } from '../types';
 
@@ -10,6 +10,7 @@ export const EpisodeCanvas: React.FC = () => {
   const [copiedVoiceover, setCopiedVoiceover] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [regeneratingSceneIdx, setRegeneratingSceneIdx] = useState<number | null>(null);
+  const [generatingI2vIdx, setGeneratingI2vIdx] = useState<number | null>(null);
   const [isExportingZip, setIsExportingZip] = useState(false);
 
   if (!activeSeries || !activeEpisode) return null;
@@ -112,6 +113,36 @@ export const EpisodeCanvas: React.FC = () => {
     }
   };
 
+  const handleGenerateI2vPrompt = async (idx: number) => {
+    if (!settings.geminiApiKey) {
+      alert('Please enter your Gemini API Key in Settings first.');
+      return;
+    }
+    const scene = activeEpisode.scenes[idx];
+    setGeneratingI2vIdx(idx);
+    try {
+      const promptText = await generateImageToVideoPrompt(
+        scene.visualDirection,
+        scene.voiceoverScript,
+        scene.aiPrompts.imagePrompt,
+        scene.generatedImageUrl,
+        settings.geminiApiKey,
+        settings.modelName
+      );
+      updateScene(idx, {
+        ...scene,
+        aiPrompts: {
+          ...scene.aiPrompts,
+          imageToVideoPrompt: promptText
+        }
+      });
+    } catch (err: any) {
+      alert(err.message || 'Failed to generate Image-to-Video prompt for Veo.');
+    } finally {
+      setGeneratingI2vIdx(null);
+    }
+  };
+
   const handleCopyVoiceovers = () => {
     const fullVoiceover = activeEpisode.scenes
       .map((s) => s.voiceoverScript.trim())
@@ -161,7 +192,8 @@ VOICEOVER: ${s.voiceoverScript}
 
 --- AI PROMPTS ---
 IMAGE PROMPT: ${s.aiPrompts.imagePrompt}
-VIDEO PROMPT: ${s.aiPrompts.videoPrompt}
+TEXT-TO-VIDEO PROMPT: ${s.aiPrompts.videoPrompt}
+VEO IMAGE-TO-VIDEO PROMPT: ${s.aiPrompts.imageToVideoPrompt || ''}
 `).join('\n\n');
 
     const blob = new Blob([text], { type: 'text/plain' });
@@ -384,7 +416,7 @@ VIDEO PROMPT: ${s.aiPrompts.videoPrompt}
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
                     <label className="flex items-center gap-1.5 text-[10px] font-black text-amber-500 uppercase tracking-wider">
-                      <ImageIcon className="w-3 h-3" /> Image Prompt (Midjourney/Flux)
+                      <ImageIcon className="w-3 h-3" /> Step 1: Image Prompt (Midjourney/Flux)
                     </label>
                     <button
                       type="button"
@@ -407,20 +439,20 @@ VIDEO PROMPT: ${s.aiPrompts.videoPrompt}
                   <textarea 
                     value={scene.aiPrompts.imagePrompt} 
                     onChange={e => updateScene(idx, { ...scene, aiPrompts: { ...scene.aiPrompts, imagePrompt: e.target.value } })}
-                    className="w-full bg-slate-950/50 rounded-lg border border-slate-800 text-[11px] text-slate-400 focus:ring-1 focus:ring-amber-500 focus:outline-none resize-none h-20 p-2 font-mono"
+                    className="w-full bg-slate-950/50 rounded-lg border border-slate-800 text-[11px] text-slate-400 focus:ring-1 focus:ring-amber-500 focus:outline-none resize-none h-16 p-2 font-mono"
                   />
                 </div>
 
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
                     <label className="flex items-center gap-1.5 text-[10px] font-black text-amber-500 uppercase tracking-wider">
-                      <Video className="w-3 h-3" /> Video Prompt (Runway/Kling)
+                      <Video className="w-3 h-3" /> Text-to-Video Prompt (t2v)
                     </label>
                     <button
                       type="button"
                       onClick={() => handleCopyText(scene.aiPrompts.videoPrompt, `vid-${idx}`)}
                       className="flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-amber-400 transition-colors"
-                      title="Copy Video Prompt"
+                      title="Copy Text-to-Video Prompt"
                     >
                       {copiedKey === `vid-${idx}` ? (
                         <>
@@ -437,6 +469,64 @@ VIDEO PROMPT: ${s.aiPrompts.videoPrompt}
                   <textarea 
                     value={scene.aiPrompts.videoPrompt} 
                     onChange={e => updateScene(idx, { ...scene, aiPrompts: { ...scene.aiPrompts, videoPrompt: e.target.value } })}
+                    className="w-full bg-slate-950/50 rounded-lg border border-slate-800 text-[11px] text-slate-400 focus:ring-1 focus:ring-amber-500 focus:outline-none resize-none h-14 p-2 font-mono"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <label className="flex items-center gap-1.5 text-[10px] font-black text-amber-500 uppercase tracking-wider">
+                        <Video className="w-3 h-3 text-amber-400" /> Step 2: Veo Image-to-Video Prompt
+                      </label>
+                      {scene.generatedImageUrl && (
+                        <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                          📷 Image Attached
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleGenerateI2vPrompt(idx)}
+                        disabled={generatingI2vIdx === idx}
+                        className="flex items-center gap-1 text-[10px] font-bold text-amber-400 hover:text-amber-300 transition-colors disabled:opacity-50"
+                        title={scene.generatedImageUrl ? "Analyze attached image and generate Google Veo prompt" : "Generate Google Veo Image-to-Video prompt"}
+                      >
+                        {generatingI2vIdx === idx ? (
+                          <Loader2 className="w-3 h-3 animate-spin text-amber-400" />
+                        ) : (
+                          <Sparkles className="w-3 h-3 text-amber-400" />
+                        )}
+                        {scene.generatedImageUrl 
+                          ? (scene.aiPrompts.imageToVideoPrompt ? 'Re-analyze Image' : 'Analyze Image & Prompt Veo')
+                          : (scene.aiPrompts.imageToVideoPrompt ? 'Regenerate Veo' : 'Generate Veo')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyText(scene.aiPrompts.imageToVideoPrompt || '', `i2v-${idx}`)}
+                        className="flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-amber-400 transition-colors"
+                        title="Copy Veo Image-to-Video Prompt"
+                      >
+                        {copiedKey === `i2v-${idx}` ? (
+                          <>
+                            <Check className="w-3 h-3 text-emerald-400" />
+                            <span className="text-emerald-400">Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" /> Copy
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                  <textarea 
+                    value={scene.aiPrompts.imageToVideoPrompt || ''} 
+                    placeholder={scene.generatedImageUrl 
+                      ? "Click 'Analyze Image & Prompt Veo' to generate camera & motion instructions from your uploaded image..." 
+                      : "Step 1: Paste/upload scene image above. Step 2: Click 'Generate Veo' to analyze image & write Veo i2v prompt..."}
+                    onChange={e => updateScene(idx, { ...scene, aiPrompts: { ...scene.aiPrompts, imageToVideoPrompt: e.target.value } })}
                     className="w-full bg-slate-950/50 rounded-lg border border-slate-800 text-[11px] text-slate-400 focus:ring-1 focus:ring-amber-500 focus:outline-none resize-none h-16 p-2 font-mono"
                   />
                 </div>
@@ -448,3 +538,5 @@ VIDEO PROMPT: ${s.aiPrompts.videoPrompt}
     </div>
   );
 };
+
+
