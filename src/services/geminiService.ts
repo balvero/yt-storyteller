@@ -430,3 +430,68 @@ Return ONLY valid JSON matching this exact structure:
     throw new Error('Failed to generate YouTube metadata. Try again.');
   }
 }
+
+export async function generateSeriesPlaylistSEO(
+  seriesTitle: string,
+  topicDescription: string,
+  globalArtStyle: string,
+  targetAudience: string,
+  existingEpisodeTitles: string[],
+  apiKey: string,
+  modelName: string = 'gemini-3.6-flash'
+): Promise<{ playlistTitle: string; playlistDescription: string }> {
+  if (!apiKey) throw new Error('API key is missing.');
+
+  const ai = new GoogleGenerativeAI(apiKey);
+
+  const episodesContext = existingEpisodeTitles.length > 0
+    ? `Episodes included in this series:\n${existingEpisodeTitles.map(t => `- ${t}`).join('\n')}`
+    : 'No specific episode list yet.';
+
+  const prompt = `
+${FACTUAL_GUARDRAIL}
+
+You are an expert YouTube Playlist SEO Specialist and Viral Channel Growth Strategist.
+
+Series Title: "${seriesTitle}"
+Series Topic & Historical Boundaries: "${topicDescription}"
+Art Style / Theme: "${globalArtStyle}"
+Target Audience: "${targetAudience}"
+
+${episodesContext}
+
+INSTRUCTIONS:
+Generate a high-converting, search-optimized YouTube Playlist Title and full Series Playlist Description:
+
+1. playlistTitle: A catchy, high-traffic YouTube Playlist Title (under 70 chars) that includes the main topic keywords (e.g. "${seriesTitle} | Full Documentary Shorts Series").
+2. playlistDescription: A powerful 3-4 paragraph SEO Playlist Description designed to rank #1 in YouTube Search and Recommendations for this topic:
+   - Paragraph 1: High-hook series overview explaining what this playlist reveals and why viewers must binge watch from Episode 1.
+   - Paragraph 2: Core historical facts, stories, and key highlights covered across the episodes.
+   - Paragraph 3: Keywords, hashtags (e.g. #Shorts #History #Documentary), and a strong call-to-action to Subscribe and Save the Playlist.
+
+Return ONLY valid JSON matching this structure:
+{
+  "playlistTitle": "...",
+  "playlistDescription": "..."
+}
+`;
+
+  const model = ai.getGenerativeModel({ model: modelName });
+  const response = await model.generateContent({
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    generationConfig: { responseMimeType: 'application/json', temperature: 0.7 }
+  });
+
+  const text = response.response.text() || '{}';
+  try {
+    const parsed = JSON.parse(text);
+    return {
+      playlistTitle: parsed.playlistTitle || `${seriesTitle} | Full Series Playlist`,
+      playlistDescription: parsed.playlistDescription || topicDescription
+    };
+  } catch (err) {
+    console.error('Failed to parse series playlist SEO JSON:', text);
+    throw new Error('Failed to generate series playlist SEO. Try again.');
+  }
+}
+

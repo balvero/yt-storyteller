@@ -50,6 +50,8 @@ export interface Series {
   targetAudience: string;
   aspectRatio?: string;
   masterReferenceUrl?: string; // e.g. a character sheet or style reference image
+  playlistTitle?: string;
+  playlistDescription?: string;
   createdAt: string;
   updatedAt: string;
 }

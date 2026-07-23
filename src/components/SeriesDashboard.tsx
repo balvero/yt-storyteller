@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useSeries } from '../context/SeriesContext';
-import { brainstormEpisodes, regenerateSingleConcept } from '../services/geminiService';
-import { Sparkles, Loader2, Save, BookOpen, Trash2, Film, RefreshCw, ChevronRight, Plus, Hash, CheckCircle2, Archive } from 'lucide-react';
+import { brainstormEpisodes, regenerateSingleConcept, generateSeriesPlaylistSEO } from '../services/geminiService';
+import { Sparkles, Loader2, Save, BookOpen, Trash2, Film, RefreshCw, ChevronRight, Plus, Hash, CheckCircle2, Archive, Youtube, Copy, Check } from 'lucide-react';
 import { db } from '../db';
 import { useLiveQuery } from 'dexie-react-hooks';
 
@@ -28,9 +28,11 @@ export const SeriesDashboard: React.FC = () => {
   const { activeSeries, updateSeries, deleteSeries, createEpisode, updateEpisode, deleteEpisode, renumberSeriesEpisodes, setActiveEpisodeId, settings } = useSeries();
   const [isSaving, setIsSaving] = useState(false);
   const [isBrainstorming, setIsBrainstorming] = useState(false);
+  const [isGeneratingPlaylistSEO, setIsGeneratingPlaylistSEO] = useState(false);
   const [isExportingSeriesZip, setIsExportingSeriesZip] = useState(false);
   const [generateCount, setGenerateCount] = useState<number>(3);
   const [regeneratingEpId, setRegeneratingEpId] = useState<string | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const episodes = useLiveQuery(
     () => activeSeries ? db.episodes.where({ seriesId: activeSeries.id }).sortBy('createdAt') : [],
@@ -45,6 +47,13 @@ export const SeriesDashboard: React.FC = () => {
   const handlePresetChange = (presetValue: string) => {
     if (presetValue === 'custom') return;
     updateSeries(activeSeries.id, { globalArtStyle: presetValue });
+  };
+
+  const handleCopyText = (text: string, key: string) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 1800);
   };
 
   const getExtensionFromDataUrl = (dataUrl: string, fallback: string): string => {
@@ -62,6 +71,39 @@ export const SeriesDashboard: React.FC = () => {
     return fallback;
   };
 
+  const handleGeneratePlaylistSEO = async () => {
+    if (!settings.geminiApiKey) {
+      alert('Please enter your Gemini API Key in Settings first.');
+      return;
+    }
+    if (!activeSeries.topicDescription) {
+      alert('Please write a detailed topic description for the series first.');
+      return;
+    }
+
+    setIsGeneratingPlaylistSEO(true);
+    try {
+      const epTitles = episodes.map(e => e.title);
+      const res = await generateSeriesPlaylistSEO(
+        activeSeries.title,
+        activeSeries.topicDescription,
+        activeSeries.globalArtStyle,
+        activeSeries.targetAudience,
+        epTitles,
+        settings.geminiApiKey,
+        settings.modelName
+      );
+      updateSeries(activeSeries.id, {
+        playlistTitle: res.playlistTitle,
+        playlistDescription: res.playlistDescription
+      });
+    } catch (err: any) {
+      alert(err.message || 'Failed to generate playlist SEO.');
+    } finally {
+      setIsGeneratingPlaylistSEO(false);
+    }
+  };
+
   const handleExportSeriesZip = async () => {
     if (episodes.length === 0) {
       alert('No episodes available to export for this series.');
@@ -74,6 +116,21 @@ export const SeriesDashboard: React.FC = () => {
       const zip = new JSZip();
 
       const cleanSeriesName = activeSeries.title.replace(/[^a-z0-9_\-\s]/gi, '').trim() || 'Series';
+
+      // Root Series Playlist SEO Metadata text file
+      if (activeSeries.playlistTitle || activeSeries.playlistDescription) {
+        const seriesPlText = `
+========================================
+SERIES YOUTUBE PLAYLIST SEO METADATA
+========================================
+PLAYLIST TITLE:
+${activeSeries.playlistTitle || ''}
+
+PLAYLIST SEO DESCRIPTION:
+${activeSeries.playlistDescription || ''}
+`;
+        zip.file(`${cleanSeriesName}/series_playlist_description.txt`, seriesPlText);
+      }
 
       for (const ep of episodes) {
         const cleanEpisodeTitle = ep.title.replace(/[^a-z0-9_\-\s]/gi, '').trim() || 'Episode';
@@ -110,7 +167,7 @@ export const SeriesDashboard: React.FC = () => {
           }
         }
 
-        // 4. Storyboard Script & YouTube Metadata text file
+        // 4. Storyboard script & YouTube Metadata text file
         const ytSection = ep.youtubeMetadata ? `
 ========================================
 YOUTUBE PUBLISHING METADATA
@@ -123,6 +180,15 @@ ${ep.youtubeMetadata.description}
 
 TAGS:
 ${(ep.youtubeMetadata.tags || []).join(', ')}
+
+----------------------------------------
+PLAYLIST SEO METADATA
+----------------------------------------
+PLAYLIST TITLE:
+${ep.youtubeMetadata.playlistTitle || activeSeries.playlistTitle || ''}
+
+PLAYLIST DESCRIPTION:
+${ep.youtubeMetadata.playlistDescription || activeSeries.playlistDescription || ''}
 
 ========================================
 STORYBOARD SCRIPT & AI PROMPTS
@@ -256,7 +322,7 @@ VEO IMAGE-TO-VIDEO PROMPT: ${s.aiPrompts.imageToVideoPrompt || ''}
             <BookOpen className="w-8 h-8 text-amber-500" />
             Series Master Profile
           </h2>
-          <p className="text-slate-400 mt-1">Define the lore, history, and visual style for your episodes.</p>
+          <p className="text-slate-400 mt-1">Define the lore, history, visual style, and YouTube Playlist SEO for your series.</p>
         </div>
         <button
           onClick={() => {
@@ -344,9 +410,102 @@ VEO IMAGE-TO-VIDEO PROMPT: ${s.aiPrompts.imageToVideoPrompt || ''}
           <textarea
             value={activeSeries.topicDescription}
             onChange={(e) => updateSeries(activeSeries.id, { topicDescription: e.target.value })}
-            className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-amber-500 min-h-[200px]"
+            className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-100 focus:outline-none focus:border-amber-500 min-h-[160px]"
             placeholder="e.g. True historical events from the Patriarchal Age... Emphasize archaeological discoveries..."
           />
+        </div>
+
+        {/* Series YouTube Playlist SEO Metadata Card */}
+        <div className="space-y-4 pt-4 border-t border-slate-800">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500">
+                <Youtube className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-black text-slate-100 flex items-center gap-2">
+                  Series YouTube Playlist SEO Metadata
+                </h4>
+                <p className="text-xs text-slate-400">Generate a high-converting Title & Description for your overall YouTube Playlist</p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGeneratePlaylistSEO}
+              disabled={isGeneratingPlaylistSEO}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 font-bold text-xs transition-all disabled:opacity-50"
+            >
+              {isGeneratingPlaylistSEO ? <Loader2 className="w-3.5 h-3.5 animate-spin text-red-400" /> : <Sparkles className="w-3.5 h-3.5" />}
+              {activeSeries.playlistDescription ? 'Regenerate Series Playlist SEO' : 'Generate Series Playlist SEO'}
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
+            {/* Playlist Title */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">
+                  YouTube Playlist Title
+                </label>
+                <button
+                  type="button"
+                  onClick={() => handleCopyText(activeSeries.playlistTitle || '', 'ser-pl-title')}
+                  className="flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-amber-400 transition-colors"
+                >
+                  {copiedKey === 'ser-pl-title' ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="text-emerald-400">Copied Title!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" /> Copy Playlist Title
+                    </>
+                  )}
+                </button>
+              </div>
+              <input
+                type="text"
+                value={activeSeries.playlistTitle || ''}
+                onChange={(e) => updateSeries(activeSeries.id, { playlistTitle: e.target.value })}
+                className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-xs font-bold text-slate-100 focus:outline-none focus:border-amber-500"
+                placeholder="e.g. Biblical History Secrets Revealed | YouTube Shorts Series"
+              />
+            </div>
+
+            {/* Playlist SEO Description */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">
+                  YouTube Playlist SEO Description (Paste into your YouTube Playlist)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => handleCopyText(activeSeries.playlistDescription || '', 'ser-pl-desc')}
+                  className="flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-amber-400 transition-colors"
+                >
+                  {copiedKey === 'ser-pl-desc' ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
+                      <span className="text-emerald-400">Copied Description!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" /> Copy Playlist Description
+                    </>
+                  )}
+                </button>
+              </div>
+              <textarea
+                rows={5}
+                value={activeSeries.playlistDescription || ''}
+                onChange={(e) => updateSeries(activeSeries.id, { playlistDescription: e.target.value })}
+                className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-amber-500 leading-relaxed font-sans"
+                placeholder="Full series playlist description for YouTube... (Click 'Generate Series Playlist SEO' above to generate with AI)"
+              />
+            </div>
+          </div>
         </div>
 
         <div className="flex items-center justify-end">
