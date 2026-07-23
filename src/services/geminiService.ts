@@ -389,19 +389,23 @@ Scenes Context:
 ${sceneSummary}
 
 INSTRUCTIONS:
-Generate high-converting YouTube Shorts metadata:
+Generate high-converting YouTube Shorts publishing and playlist metadata:
 1. youtubeTitle: A viral, high-CTR title (under 70 characters) optimized for YouTube Shorts algorithm with 2-3 trending hashtags (e.g. #Shorts #History #Documentary). Must create a strong curiosity gap.
-2. description: An engaging 3-paragraph YouTube description:
+2. description: An engaging 3-paragraph YouTube video description:
    - Paragraph 1: High-hook summary of the story designed to drive comments/views.
    - Paragraph 2: Key story highlights or questions ("Did you know...?").
    - Paragraph 3: Relevant hashtags & call to subscribe.
 3. tags: An array of 12-20 high-traffic search tags & long-tail keyword phrases (e.g. ["ancient history", "historical facts", "shorts", "documentary", ...]).
+4. playlistTitle: A search-optimized, catchy YouTube Playlist Title for this series/season (e.g. "${seriesTitle} - Full Shorts Series").
+5. playlistDescription: A high-converting 2-3 paragraph SEO Playlist Description optimized for YouTube search & recommendation algorithm. It should summarize the overarching series narrative, explain why viewers must watch from episode 1, list core topics covered, include call-to-actions, and incorporate high-traffic search keywords.
 
 Return ONLY valid JSON matching this exact structure:
 {
   "youtubeTitle": "...",
   "description": "...",
-  "tags": ["tag1", "tag2", "tag3"]
+  "tags": ["tag1", "tag2", "tag3"],
+  "playlistTitle": "...",
+  "playlistDescription": "..."
 }
 `;
 
@@ -417,7 +421,9 @@ Return ONLY valid JSON matching this exact structure:
     return {
       youtubeTitle: parsed.youtubeTitle || episodeTitle,
       description: parsed.description || episodeConcept,
-      tags: Array.isArray(parsed.tags) ? parsed.tags : []
+      tags: Array.isArray(parsed.tags) ? parsed.tags : [],
+      playlistTitle: parsed.playlistTitle || `${seriesTitle} - Full Series`,
+      playlistDescription: parsed.playlistDescription || seriesTopic
     };
   } catch (err) {
     console.error('Failed to parse YouTube metadata JSON:', text);

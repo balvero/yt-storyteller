@@ -104,16 +104,25 @@ export const EpisodeCanvas: React.FC = () => {
       // 4. Storyboard Script & Metadata Text File
       const ytSection = activeEpisode.youtubeMetadata ? `
 ========================================
-YOUTUBE PUBLISHING METADATA
+YOUTUBE PUBLISHING & PLAYLIST METADATA
 ========================================
-TITLE:
+VIDEO TITLE:
 ${activeEpisode.youtubeMetadata.youtubeTitle}
 
-DESCRIPTION:
+VIDEO DESCRIPTION:
 ${activeEpisode.youtubeMetadata.description}
 
 TAGS:
 ${(activeEpisode.youtubeMetadata.tags || []).join(', ')}
+
+----------------------------------------
+PLAYLIST SEO METADATA
+----------------------------------------
+PLAYLIST TITLE:
+${activeEpisode.youtubeMetadata.playlistTitle || ''}
+
+PLAYLIST DESCRIPTION:
+${activeEpisode.youtubeMetadata.playlistDescription || ''}
 
 ========================================
 STORYBOARD SCRIPT & AI PROMPTS
@@ -333,16 +342,25 @@ VEO IMAGE-TO-VIDEO PROMPT: ${s.aiPrompts.imageToVideoPrompt || ''}
   const handleExport = () => {
     const ytSection = activeEpisode.youtubeMetadata ? `
 ========================================
-YOUTUBE PUBLISHING METADATA
+YOUTUBE PUBLISHING & PLAYLIST METADATA
 ========================================
-TITLE:
+VIDEO TITLE:
 ${activeEpisode.youtubeMetadata.youtubeTitle}
 
-DESCRIPTION:
+VIDEO DESCRIPTION:
 ${activeEpisode.youtubeMetadata.description}
 
 TAGS:
 ${(activeEpisode.youtubeMetadata.tags || []).join(', ')}
+
+----------------------------------------
+PLAYLIST SEO METADATA
+----------------------------------------
+PLAYLIST TITLE:
+${activeEpisode.youtubeMetadata.playlistTitle || ''}
+
+PLAYLIST DESCRIPTION:
+${activeEpisode.youtubeMetadata.playlistDescription || ''}
 
 ========================================
 STORYBOARD SCRIPT & AI PROMPTS
@@ -568,7 +586,7 @@ VEO IMAGE-TO-VIDEO PROMPT: ${s.aiPrompts.imageToVideoPrompt || ''}
               <h3 className="text-base font-black text-slate-100 flex items-center gap-2">
                 YouTube Publishing & SEO Metadata
               </h3>
-              <p className="text-xs text-slate-400">Viral title, search-optimized description, and tags for YouTube Shorts</p>
+              <p className="text-xs text-slate-400">Viral title, search-optimized description, playlist metadata, and tags for YouTube Shorts</p>
             </div>
           </div>
           <button
@@ -694,6 +712,86 @@ VEO IMAGE-TO-VIDEO PROMPT: ${s.aiPrompts.imageToVideoPrompt || ''}
                     #{tag}
                   </span>
                 ))}
+              </div>
+            </div>
+
+            {/* Playlist Title & SEO Description */}
+            <div className="pt-4 border-t border-slate-800/80 space-y-4">
+              <div className="flex items-center gap-2">
+                <Film className="w-4 h-4 text-purple-400" />
+                <h4 className="text-xs font-black text-slate-200 uppercase tracking-wider">
+                  YouTube Playlist Metadata (Series / Season Playlist)
+                </h4>
+              </div>
+
+              {/* Playlist Title */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    Playlist Title
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyText(activeEpisode.youtubeMetadata?.playlistTitle || '', 'yt-pl-title')}
+                    className="flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-amber-400 transition-colors"
+                  >
+                    {copiedKey === 'yt-pl-title' ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        <span className="text-emerald-400">Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" /> Copy Playlist Title
+                      </>
+                    )}
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={activeEpisode.youtubeMetadata.playlistTitle || ''}
+                  onChange={(e) => {
+                    const updated = { ...activeEpisode.youtubeMetadata!, playlistTitle: e.target.value };
+                    updateEpisode(activeEpisode.id, { youtubeMetadata: updated });
+                  }}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-200 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  placeholder="SEO Optimized Playlist Title (e.g. Biblical History Secrets | YouTube Shorts Series)"
+                />
+              </div>
+
+              {/* Playlist SEO Description */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                    Playlist SEO Description
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyText(activeEpisode.youtubeMetadata?.playlistDescription || '', 'yt-pl-desc')}
+                    className="flex items-center gap-1 text-xs font-bold text-slate-400 hover:text-amber-400 transition-colors"
+                  >
+                    {copiedKey === 'yt-pl-desc' ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        <span className="text-emerald-400">Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" /> Copy Playlist Description
+                      </>
+                    )}
+                  </button>
+                </div>
+                <textarea
+                  rows={4}
+                  value={activeEpisode.youtubeMetadata.playlistDescription || ''}
+                  onChange={(e) => {
+                    const updated = { ...activeEpisode.youtubeMetadata!, playlistDescription: e.target.value };
+                    updateEpisode(activeEpisode.id, { youtubeMetadata: updated });
+                  }}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3.5 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-amber-500 leading-relaxed font-sans"
+                  placeholder="SEO optimized playlist description summarizing the full series, call to subscribe, and target keyword phrases..."
+                />
               </div>
             </div>
           </div>

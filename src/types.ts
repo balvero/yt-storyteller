@@ -21,6 +21,8 @@ export interface YouTubeMetadata {
   youtubeTitle: string;
   description: string;
   tags: string[];
+  playlistTitle?: string;
+  playlistDescription?: string;
 }
 
 export interface Episode {
